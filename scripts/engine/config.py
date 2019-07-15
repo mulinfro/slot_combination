@@ -18,6 +18,6 @@ rule_select_strategy = "uniform"
 
 # sum patterns + slots 
 # log log(patterns + slots)
-pattern_weight_func = "sum"
+pattern_weight_func = "log"
 
 shuffle = True

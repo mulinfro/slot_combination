@@ -68,7 +68,7 @@ class token_list():
         return self.read_pair("ANGLE", '>')
 
     def read_list_f(self):
-        return self.read_pair("FANG", ']')
+        return self.read_pair("LIST", ']')
 
     def read_hashmap(self):
         return self.read_pair("DICT", '}')

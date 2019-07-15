@@ -18,8 +18,12 @@ class AST():
             tkn = stm.peek()
             if tkn.tp == 'EXPORT':
                 val = self.ast_export(stm)
-            else:
+            elif tkn.tp == 'VAR':
                 val = self.ast_rule(stm)
+            elif tkn.tp == 'ATOM':
+                val = self.ast_atom(stm)
+            else:
+                Error("Unexpeted begining token %s"%tkn.val)
             self.ast.append(val)
 
     def newlines(self, stm):
@@ -33,17 +37,39 @@ class AST():
             tps.append(stm.next().val)
         return tps
 
-    def ast_rule(self, stm, is_export=False):
+    def ast_rule_helper(self, stm, is_export=False):
         syntax_assert(stm.peek(), "STR", stm.peek().tp)
         rule_name = stm.next().val
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
+
         body = self.ast_rule_body(stm)
-        intent_slot = self.ast_intent_slot(stm, is_export)
-        weight = self.ast_weight(stm)
+        return {"tp": "RULE_BODY", "rule_name": rule_name, "body": body }
+
+    def is_rule_end(self, stm):
+        if stm.eof(): return True
+        tkn = stm.peek()
+        if tkn.tp == "SEP" and tkn.val in ["SEMI", "NEWLINE" ]:
+            stm.next()
+            return True
+        return False
+
+    def ast_atom_body(self, stm):
+        eles = []
+        while True:
+            eles.append(self.ast_atom_ele(stm))
+            if self.is_rule_end(stm): break
+            syntax_assert(stm.next(), ("OP", "|"), "need |")
+
+        return eles
+
+    def ast_atom_helper(self, stm):
+        syntax_assert(stm.peek(), "STR", stm.peek().tp)
+        rule_name = stm.next().val
+        syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
+        body = self.ast_atom_body(stm)
         self.ast_same_type_seq(stm, lambda tkn: syntax_check(tkn, ("SEP","SEMI")))
 
-        return {"tp": "RULE", "rule_name": rule_name, "body": body, "weight": weight,
-                "intent":intent_slot.get("intents", {}), "slot":intent_slot.get("slots", {})}
+        return body
 
     def skip_tkns(self, stm, candi):
         while not stm.eof():
@@ -61,16 +87,43 @@ class AST():
             syntax_assert(stm.peek(), "STRING")
             val = stm.next().val
             if "$" in val:
-                val = int(val.strip("$"))
-                slots[val] = var_name
+                idx_val = int(val.strip("$"))
+                slots[idx_val] = var_name
             else:
                 intents[var_name] = val
             # 跳过，
             if not stm.eof(): stm.next()
-        return { "intents": intents,  "slots": slots }
+        return { "intent": intents,  "slot": slots }
 
-    def ast_intent_slot(self, stm, is_export):
-        if not is_export: return {}
+    def ast_rule_post_func(self, ori_stm):
+        self.skip_tkns(ori_stm, ["=>", "request"])
+        i_s_tuple = ori_stm.peek()
+        post_func = {"params":{} }
+        if i_s_tuple.tp != "PARN": return {}
+        ori_stm.next()
+        stm = stream(i_s_tuple.val)
+        while not stm.eof(): 
+            syntax_cond_assert("STR" in stm.peek().tp, str(stm.peek()) + " in post func parse")
+            var_name = stm.next().val
+            if stm.eof(): break
+            if syntax_check(stm.peek(),  ("SEP", "COMMA")):
+                post_func["func"] = var_name
+                stm.next()
+            else:
+                syntax_assert(stm.next(), ("OP", "="), "%s need = here"%var_name)
+                syntax_assert(stm.peek(), "STRING")
+                val = stm.next().val
+                if "$" in val:
+                    idx_val = int(val.strip("$"))
+                    post_func["params"][var_name] = idx_val
+                else:
+                    post_func["params"][var_name] = val
+
+                if not stm.eof(): stm.next()
+
+        return post_func
+                
+    def ast_intent_slot(self, stm):
         self.skip_tkns(stm, ["=>", "request"])
         i_s_tuple = stm.next()
         if i_s_tuple.tp == "PARN":
@@ -103,22 +156,6 @@ class AST():
         joint_ele = {"tp": "JOINT_RULE_BODY", "val": vals}
         return joint_ele, op
 
-        
-    # 1. 连续的eles， 2. “|” 可选的eles
-    def ast_rule_body(self, stm):
-        joint_eles, bin_ops = [], []
-        while True:
-            joint_ele, op = self.ast_joint_ele_helper(stm)
-            if not joint_ele: break
-            joint_eles.append(joint_ele)
-            if op is None: break
-            bin_ops.append(op)
-
-        if len(joint_eles) == 1:
-            return joint_eles[0]
-        else:
-            return {"tp": "BIN_RULE_BODY", "val": joint_eles, "op": bin_ops }
-
     def ast_compose_rule_ele(self, stm):
         v = self.ast_rule_ele(stm)
         if not stm.eof():
@@ -139,19 +176,55 @@ class AST():
                 return v
         return v
             
-    def ast_rule_ele(self, stm):
+    def ast_var_ele(self, stm):
         tkn = stm.next()
-        if tkn.tp == "PARN":
+        if is_candi_op(tkn, "$"):
+            t = self.ast_try_ref(stm)
+            if t: return t
+            else: return {"tp": op_type[tkn.val], "val": tkn.val }
+        elif tkn.tp in ["PARN", "LIST", "DICT"]:
             parn_body = self.ast_rule_body(stream(tkn.val))
-            return {"tp":"PARN", "val":parn_body }
+            return {"tp":tkn.tp, "val":parn_body }
+        else:
+            syntax_assert(tkn, "STR", "Unexpected %s"%str(tkn.val) )
+            return {"tp":"CONSTANT", "val": tkn.val }
+
+    def ast_compose_var_ele(self, stm):
+        a_var = self.ast_var_ele(stm)
+        if not self.is_rule_end(stm):
+            op = self.ast_suf_op(stm)
+            if op: return {"tp": "COMP", "val": a_var, "op": op}
+        return a_var
+        
+    def ast_suf_op(self, stm):
+        tkn = stm.peek()
+        if is_candi_op(tkn, "?+*"):
+            stm.next()
+            return {"tp": op_type[tkn.val], "val": tkn.val }
+
+
+    def ast_atom_ele(self, stm):
+        tkn = stm.next()
+        if tkn.tp == "STR":
+            return {"tp":"CONSTANT", "val": tkn.val }
+        elif is_candi_op(tkn, "$"):
+            t = self.ast_try_ref(stm)
+            if t and t["tp"] == "REF":
+                return t
+
+        Error("Unexpected %s"%tkn.val, tkn.line, tkn.col)
+        
+    def ast_rule_body(self, stm):
+        tkn = stm.next()
+        if tkn.tp in ["PARN", "LIST", "DICT"]:
+            parn_body = self.ast_rule_body(stream(tkn.val))
+            return {"tp":tkn.tp, "val":parn_body }
         elif is_candi_op(tkn, "$"):
             t = self.ast_try_ref(stm)
             if t: return t
             else: return {"tp": op_type[tkn.val], "val": tkn.val }
         elif is_candi_op(tkn, "^|"):
             return {"tp": op_type[tkn.val], "val": tkn.val }
-        elif tkn.tp == "FANG":
-            return {"tp":"FANG" }
         elif tkn.tp == "OP" and tkn.val == ".":
             return {"tp":"RE_DOT" }
         else:
@@ -169,7 +242,38 @@ class AST():
 
         return 1.0
 
+    def ast_params(self, stm):
+        if not self.is_rule_end(stm) and syntax_check(stm.peek(), ("OP", "::")):
+            pass
+        
+
     def ast_export(self, stm):
         stm.next()
-        rule = self.ast_rule(stm, True)
-        return {"tp": "EXPORT", "val": rule, "weight": rule["weight"] }
+        rule = self.ast_rule_helper(stm, True)
+        ans = {"tp": "EXPORT", "body": rule["body"], "name": body["rule_name"] }
+
+        params = self.ast_params(stm)
+        if params: ans["params"] = params
+
+        intent_slot = self.ast_intent_slot(stm)
+        if intent_slot: ans["intent_slot"] = intent_slot
+
+        weight = self.ast_weight(stm)
+        if weight: ans["weight"] = weight
+        syntax_cond_assert(self.is_rule_end(stm), "expected rule end")
+
+        return ans
+
+    def ast_rule(self, stm):
+        stm.next()
+        rule = self.ast_rule_helper(stm, False)
+        ans =  {"tp": "RULE", "val": rule }
+        post_func = self.ast_rule_post_func(stm)
+        if post_func: ans["post_func"] = post_func
+        syntax_cond_assert(self.is_rule_end(stm), "expected rule end")
+        return ans
+
+    def ast_atom(self, stm):
+        stm.next()
+        rule = self.ast_atom_helper(stm, True)
+        return {"tp": "ATOM", "val": rule }

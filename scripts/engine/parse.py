@@ -24,7 +24,7 @@ def parse(node):
 
 def parse_rule_helper(node):
     name = node["rule_name"]
-    body = parse_rule_body(node["body"], node["intent"], node["slot"])
+    body = parse_rule_body(node["body"], node.get("intent", {}), node.get("slot", {}))
     return (name, body)
 
 def parse_rule(node):

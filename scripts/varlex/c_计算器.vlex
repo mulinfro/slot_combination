@@ -4,7 +4,7 @@
 # (动作， 歌手,  #的， 对象 )  <=   完全匹配
 
 
-DOT_2
+# DOT_2
 
 atom digit = 零|两|一二|三|四|五|六|七|八|九|点 ;
 
@@ -16,4 +16,6 @@ atom parn = 括号|括弧|左括号|右括号
 
 var number = ${digit}+
 var unary_expr = [ ${unary_op}+, ${number}, ${unary_op }+ ]
-var bin_expr = [ ${bin_op}, [${unary_expr}, ${bin_op}]+ ]
+var bin_expr = [ ${bin_op}, [${unary_expr}, ${bin_op}]+ ] 
+
+export expr_0 = (${bin_expr}) :: [ "^$", ] => request(intent="计算器", expr="$1");

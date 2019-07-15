@@ -6,8 +6,10 @@ keywords = {
      "export": "EXPORT",
      "if": "IF",
      "end": "END",
+     "atom":"ATOM",
+     "var": "VAR",
 }
-op_alp = '|^$?+*=>.'
+op_alp = '|^$?+*=>.:'
 
 op_info = {
 "^": "^",
@@ -19,6 +21,7 @@ op_info = {
 "|": "|",
 "=": "=",
 "=>": "=>",
+"::": "::",
 }
 
 op_type = {
@@ -31,6 +34,7 @@ op_type = {
 "|": "BIN",
 "=": "ASSIGN",
 "=>": "P0",
+"::": "P0",
 }
 
 def a_b_times(a, b):
