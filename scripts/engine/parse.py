@@ -3,6 +3,11 @@ import builtin, config
 import random
 from syntax_check import Error
 
+class ruleObj():
+    def __init__(self):
+        must_word_set = set()
+        
+
 def get_mul_size(objs):
     ans = 1
     for obj in objs:
