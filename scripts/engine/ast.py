@@ -66,7 +66,7 @@ class AST():
         rule = self.ast_rule_helper(stm, False)
         post_func = self.ast_rule_post_func(stm)
         syntax_cond_assert(self.is_rule_end(stm), "expected rule end")
-        return {"tp": "RULE", "val": rule, "post_func": post_func }
+        return {"tp": "RULE", "name":rule["rule_name"], "body": rule["body"], "post_func": post_func }
 
     def ast_atom(self, stm):
         stm.next()
@@ -137,7 +137,7 @@ class AST():
                     b = a
                 else:
                     b = int(dict_para[2].val)
-                return { "tp": "COMP", "val": v, "op_tkn": "a_b_times", "op": op_funcs["a_b_times"](a, b) }
+                return { "tp": "COMP", "val": v, "op_tkn": "a_b_times", "op": op_funcs["a_b_times"] , "range":(a,b)}
             elif stm.peek().tp == "ANGLE":
                 suf = stm.next()
                 return v

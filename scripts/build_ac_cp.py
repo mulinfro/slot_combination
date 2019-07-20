@@ -12,24 +12,38 @@ word_dict_config = {
  "量词": "LC",
 }
 
+A = ahocorasick.Automaton()
 
-AC = ahocorasick.Automaton()
-
-def read_and_insert(ac, f, tag):
-    for line in open(slot_path + "/" + f):
+def read_and_insert(A, f, tag):
+    for line in open(base_path + "/words/music/" + f):
         line = line.strip()
-        ac.add_word(line, (tag, len(line), line))
+        A.add_word(line, (tag, len(line), line))
 
-def build_rule_ac(word_dict_config, all_word_rule_tag):
-    # word slots
+
+def build_with_config():
     for fn, tag in word_dict_config.items():
-        read_and_insert(AC, fn, tag)
+        read_and_insert(A, fn, tag)
+    A.make_automaton()
+    print("A:", len(A))
 
-    # word rule tag
-    for word, tag in all_word_rule_tag.items():
-        AC.add_word(word, tag)
-    AC.make_automaton()
+build_with_config()
 
+
+test_keys = [
+"关晓彤",
+"刘德华",
+"忘情水",
+"播放",
+"大大",
+]
+
+def test():
+    for t in test_keys:
+        print(t, A.get(t, None))
+
+#test()
+
+#def 
 
 import weighted_interval_scheduling as WIS
 

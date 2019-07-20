@@ -4,31 +4,27 @@ base_path = "/mnt/lustre/asrdata/home/ll202/data/lex_words/music"
 base_path = "/mnt/lustre/asrdata/home/ll202/slot_infer"
 base_path = "/home/liangliu/slot_infer"
 
-word_dict_config = {
- "歌曲名" : "GQM",
- "操作": "OP",
- "歌手名": "GSM",
- "介词": "JC",
- "量词": "LC",
-}
 
+rule_segs = {}
 
-AC = ahocorasick.Automaton()
+def match(sen):
+    all_matched_words = set()
+    word_rule_reverse_dict = {} 
 
-def read_and_insert(ac, f, tag):
-    for line in open(slot_path + "/" + f):
-        line = line.strip()
-        ac.add_word(line, (tag, len(line), line))
+    all_rule_need_word_cnt = {}
+    rule_cnt = {}
+    candicates = []
+    for end_index, (tag, lg, key) in AC.iter(sen):
+        #start_index = end_index - lg + 1
+        if key in word_rule_reverse_dict and key not in all_matched_words: 
+            all_matched_words.add(key)
+            for word in word_rule_reverse_dict[key]:
+                rule_cnt[word] = rule_cnt.get(word,0 ) + 1
 
-def build_rule_ac(word_dict_config, all_word_rule_tag):
-    # word slots
-    for fn, tag in word_dict_config.items():
-        read_and_insert(AC, fn, tag)
+    for rule, cnt in rule_cnt.items()
+        if cnt == all_rule_need_word_cnt[rule]:
+            candicates.append(rule)
 
-    # word rule tag
-    for word, tag in all_word_rule_tag.items():
-        AC.add_word(word, tag)
-    AC.make_automaton()
 
 
 import weighted_interval_scheduling as WIS

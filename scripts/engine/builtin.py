@@ -47,9 +47,9 @@ def repeat(env, f, cand_list):
     return "".join(parts)
 
 op_funcs = {
-    "+": lambda f: lambda env: repeat(env, f, list(range(1, DEAUFALT_MAX_REPEAT+1) ) ),
-    "?": lambda f: lambda env: repeat(env, f, [0, 1]),
-    "*": lambda f: lambda env: repeat(env, f, list(range(0, DEAUFALT_MAX_REPEAT+1) ) ),
-    "a_b_times": a_b_times,
+    "+": "+",
+    "?": "?",
+    "*": "*",
+    "a_b_times": "a&b",
 }
 

@@ -1,133 +1,89 @@
 
 import builtin, config
-import random
 from syntax_check import Error
 
-def get_ref_cnt(fname):
-    def _helper(env):
-        if env["__SLOT_WORDS__"]:
-            slots = env["__SLOT_WORDS__"][fname]
-            idx = env["__IDX__"]
-            env["__EXPORT_SLOT_CNT__"][idx] += len(slots)
-        return 1
-    return _helper
+all_nessary_set, all_rules = {}, {}
+all_word_rule_tag = {}
+all_word_dicts = []
 
-def parse(node):
+def parse(nodes):
+    global all_nessary_set, all_rules
+    for node in nodes:
+        name = node["name"]
+        all_rules[name] = node["body"]
+
+    for name, body in all_rules.items():
+        if name in all_nessary_set: continue
+        all_nessary_set[name] = parse_a_rule(body)
+
+def parse_a_rule(node):
     if  node["tp"] == 'EXPORT': 
         val = parse_export(node)
+    elif  node["tp"] == 'ATOM': 
+        val = parse_atom(node)
     else: 
         val = parse_rule(node)
 
-    return val
+    return set(val)
 
-def parse_rule_helper(node):
-    name = node["rule_name"]
-    body = parse_rule_body(node["body"], node.get("intent", {}), node.get("slot", {}))
-    return (name, body)
+def parse_atom(node):
+    ans = []
+    for ele in node["val"]:
+        if ele["tp"] == "CONSTANT":
+            ans.append(ele["val"])
 
-def gen_export_cnt(env):
-    i = 0
-    env["__EXPORT_SLOT_CNT__"] = [0] * len(env["__EXPORT_CNT_BODY__"])
-    env["__EXPORT_PATTERN_CNT__"] = [0] * len(env["__EXPORT_CNT_BODY__"])
-    for name, body in env["__EXPORT_CNT_BODY__"]:
-        env["__IDX__"] = i
-        env["__EXPORT_PATTERN_CNT__"][i] = body(env) 
-        i += 1
-
-    
+    return ans
 
 def parse_rule(node):
-    name, body = parse_rule_helper(node)
-
-    def _get_a_rule(env):
-        env["__CNT__"][name] = body
-    return _get_a_rule
+    return parse_rule_body(node)
 
 def parse_export(node):
-    name, body = parse_rule_helper(node["val"])
-    def _get_a_export_rule(env):
-        env["__EXPORT_CNT_BODY__"].append( (name, body) )
-
-    return _get_a_export_rule
-
-def parse_rule_body(node, intent=None, slot={}):
-    if node["tp"] == "JOINT_RULE_BODY":
-        ans = parse_joint_body(node, slot, intent)
-    elif node["tp"] == "BIN_RULE_BODY":
-        ans = parse_bin_body(node)
-    else:
-        Error("Unexpected body type %s"%node["tp"] )
-    return ans
-
-def parse_joint_body(node, slot, intent):
-    ele_funcs = [ parse_rule_ele(ele) for ele in node["val"] ]
-    def _gen(env):
-        ans = 1
-        for ele in ele_funcs:
-            ans *= ele(env)
-        return ans
-    return _gen
-
-def parse_bin_body_helper(ele, slot):
-    if ele["tp"] == "JOINT_RULE_BODY":
-        ans = parse_joint_body(ele, slot, {})
-    else:
-        ans = parse_rule_ele(ele)
-    return ans
-
-def parse_bin_body(node):
-    ele_funcs = [ parse_bin_body_helper(ele, {}) for ele in node["val"] ]
-    def _gen(env):
-        return sum([ele(env) for ele in ele_funcs])
-    return _gen
-
-def parse_comp_ele(node):
-    val, op_f = node["val"], node["op"]
-    #op_f = builtin.op_funcs[op]
-    if val["tp"] in ["PARN", "REF", "VAR", "RE_DOT"]:
-        bval = parse_rule_ele(val)
-        if op_f is builtin.op_funcs["?"]: 
-            return lambda env: 2 * bval(env)
-        else:
-            return lambda env: 3 * bval(env)
-    elif val["tp"] == "CONSTANT":
-        return lambda env: 2 * 1
-    else:
-        Error("comp ele type %s"%val["tp"])
-
-def get_env_var(env, val):
-    if val not in env:
-        print(env.keys())
-    return env["__CNT__"][val]
-
-def rule_cache_run(name):
-    def _run(env):
-        ev = env["__CNT__"][name]
-        if type(ev) == int:
-            return env["__CNT__"][name]
-        else:
-            iev = ev(env)
-            env["__CNT__"][name] = iev
-            return iev
-
-    return _run
+    return parse_rule_body(node)
 
 def parse_rule_ele(node):
-    if node["tp"] == "PARN":
+    if node["tp"] == "CONSTANT":
+        return [node["val"] ]
+    elif node["tp"] in ["PARN", "LIST", "DICT"]:
         return parse_rule_body(node["val"])
-    elif node["tp"] in ["CONSTANT", "FANG", "RE_DOT"]:
-        return lambda env: 1
     elif node["tp"] == "VAR":
-        val = node["val"]
-        return rule_cache_run(val)
-        #return lambda env: get_env_var(env, val)
+        return rule_cache_run(node["val"])
     elif node["tp"] == "REF":
-        val = node["val"]
-        return get_ref_cnt(val)
-        #return lambda env: "${%s}"%val
+        global all_word_dicts
+        all_word_dicts.append(node["val"])
+        return []
     elif node["tp"] == "COMP":
         return parse_comp_ele(node)
     elif node["tp"] == "P0":
-        return lambda env: 1
+        return []
     else:
         Error("rule ele type %s"%node["tp"])
+
+def parse_rule_body(node):
+    if node["tp"] == "OR_ELE":
+        ans = parse_joint_body(node)
+    else:
+        ans = parse_rule_ele(node)
+    return ans
+
+def parse_joint_body(node):
+    ans = []
+    for ele in node["val"]:
+        ans.extend( parse_rule_ele(ele))
+    return ans
+
+def parse_comp_ele(node):
+    val, op_f = node["val"], node["op_tkn"]
+    bval = parse_rule_ele(val)
+    if op_f == "+":
+        return bval
+    elif op_f == "a_b_times" and node["range"][0] > 0:
+        return bval
+    else:
+        return []
+
+def rule_cache_run(name):
+    if name in all_nessary_set:
+        return all_nessary_set[name]
+    else:
+        return parse_a_rule(all_rules[name])
+
