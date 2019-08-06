@@ -4,10 +4,12 @@ import random
 
 keywords = {
      "export": "EXPORT",
-     "if": "IF",
-     "end": "END",
-     "atom":"ATOM",
-     "var": "VAR",
+     "if":     "IF",
+     "end":    "END",
+     "atom":   "ATOM",
+     "var":    "VAR",
+     "atom_plus": "ATOM_PLUS",
+     "var_plus":  "VAR_PLUS",
 }
 op_alp = '|^$?+*=>.:'
 
