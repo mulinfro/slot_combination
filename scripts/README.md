@@ -33,3 +33,10 @@ var m2 = [${atom}, ${m1} ]
 var_plus m2_p = [${atom}, ${m1} ] +
 
 rule r1 = [${b1}, ${m1} ]
+
+## 
+key_word_list
+[beg_idx, end_idx, string, tag_list]
+
+word_set
+[beg_idx, end_idx, string, tag_list]
