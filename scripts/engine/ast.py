@@ -37,6 +37,17 @@ def skip_tkns(stm, candi):
             stm.back()
             break
 
+def extract_all_atoms(ast):
+    slots = {}
+    for atom_name in ast.atom:
+        for atom_value in ast.ast[atom_name]:
+            tag = slots.get(atom_value, [])
+            if atom_name not in tag:
+                tag.append(atom_name)
+            slots[atom_value] = tag
+
+    return slots
+        
 def get_cross_ele(lst, all_sets, i):
     ans = []
     if i >= len(lst): return all_sets
@@ -45,6 +56,7 @@ def get_cross_ele(lst, all_sets, i):
         if i != len(lst) - 1:
             ans.append( e + lst[i][0:-1])
     return get_cross_ele(lst, ans, i + 1)
+
 
 class AST():
 

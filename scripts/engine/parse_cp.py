@@ -1,830 +1,158 @@
-from builtin import operators, op_order, Binary, Unary, op_right
-from libs.os_cmd import cd, osCall
-import copy
-from types import GeneratorType
-from env import Env
-from syntax_check import Error, syntax_cond_assert
-from exception import Return_exception, Assert_exception, Continue_exception, Break_exception, exception_warp, Generator_with_catch
-PARTIAL_FLAG = lambda f: f  
-PARTIAL_FLAG_LAMBDA = lambda env: PARTIAL_FLAG
 
+import builtin, config
+import random
+from syntax_check import Error
+
+class ruleObj():
+    def __init__(self):
+        must_word_set = set()
+        
+
+def get_mul_size(objs):
+    ans = 1
+    for obj in objs:
+        ans *= obj.get("size", 1)
+
+def random_a_slot(env, fname):
+    if env["__SLOT_WORDS__"]:
+        slots = env["__SLOT_WORDS__"][fname]
+        return random.choice(slots)
+    return "${%s}"%fname
 
 def parse(node):
-    if  node["type"] == 'DEF': 
-        val = parse_def(node)
-    elif node["type"] == 'CASE': 
-        val = parse_case(node)
-    elif node["type"] == 'IMPORT': 
-        val = parse_import(node)
-    elif node["type"] == 'MODULE': 
-        val = parse_module(node)
-    else:
-        val = parse_block_expr(node)
+    if  node["tp"] == 'EXPORT': 
+        val = parse_export(node)
+    else: 
+        val = parse_rule(node)
+
     return val
 
-def parse_del(node):
-    names = node["vars"]
-    def _del(env):
-        for name in names:
-            t = env.find(name)
-            if t is None: Error("undefind variable %s"%name)
-            del t[name]
-    return exception_warp(_del, node["msg"])
+def parse_rule_helper(node):
+    name = node["rule_name"]
+    body = parse_rule_body(node["body"], node.get("intent", {}), node.get("slot", {}))
+    return (name, body)
 
-def parse_sh(node):
-    cmd = parse_pipe_or_expr(node["cmd"])
-    def _sh(env):
-        cmd_val = cmd(env)
-        syntax_cond_assert(type(cmd_val) == str, "Value Error: sh handles a string")
-        return osCall(cmd_val)
-    return exception_warp(_sh, node["msg"])
+def parse_rule(node):
+    name, body = parse_rule_helper(node)
 
-def parse_cd(node):
-    cmd = parse_pipe_or_expr(node["cmd"])
-    def _cd(env):
-        cmd_val = cmd(env)
-        syntax_cond_assert(type(cmd_val) in [str, int], "Value Error: cd accept a string or int")
-        return cd(cmd_val)
-    return exception_warp(_cd, node["msg"])
+    def _get_a_rule(env):
+        env["__RULE__"][name] = body
+    return _get_a_rule
 
-def parse_block_or_expr(node):
-    if node["type"] == "S_BLOCK":
-        b_expr = parse_block(node["body"])
+def parse_export(node):
+    name, body = parse_rule_helper(node["val"])
+    weight = node["weight"]
+    def _get_a_export_rule(env):
+        env["__EXPORT__"].append( (name, body, weight) )
+
+    return _get_a_export_rule
+
+def parse_rule_body(node, intent, slot):
+    if node["tp"] == "JOINT_RULE_BODY":
+        ans = parse_joint_body(node, slot, intent)
+    elif node["tp"] == "BIN_RULE_BODY":
+        ans = parse_bin_body(node)
     else:
-        b_expr = parse_expr_or_command(node)
-    return b_expr
+        Error("Unexpected body type %s"%node["tp"] )
+        
+    if config.show_intent and intent:
+        intent_out = [ k + "-" + v for k,v in intent.items() if not k.startswith("__") and v ]
+        if "__act__" in intent and "__tgt__" in intent and intent["__tgt__"] not in slot.values():
+            intent_out.append(intent["__act__"] + '-' + intent["__tgt__"])
+        def _warp(env):
+            return ans(env) + " => " + ",".join(intent_out)
+        return _warp
+    return ans
 
-def parse_catched(node):
-    expr = parse_block_expr(node["expr"])
-    handle = parse_block_or_expr(node["handle"])
+def get_slot_index(node, slot):
+    slot_indexes = {}
+    j = 1
+    for i, ele in enumerate(node):
+        if ele["tp"] == "PARN" or (ele["tp"] == "COMP" and ele["val"]["tp"] == "PARN"):
+            if j in slot:
+                slot_indexes[i] = slot[j]
+            j = j + 1
+    return slot_indexes
 
-    def _catched(env):
-        try:
-            val = expr(env)
-            if isinstance(val, GeneratorType) or isinstance(val, Generator_with_catch):
-                return Generator_with_catch(val, handle, env)
-            return val
-        except Exception as e:
-            print(repr(e))
-            return handle(env)
+def parse_joint_body(node, slot, intent):
+    ele_funcs = [ parse_rule_ele(ele) for ele in node["val"] ]
+    slot_indexes = get_slot_index(node["val"], slot)
+    def _gen(env):
+        parts = []
+        for i, ele in enumerate(ele_funcs):
+            v = ele(env)
+            if v and config.show_slot and i in slot_indexes:
+                act = "inform"
+                if "__tgt__" in intent and slot_indexes[i] == intent["__tgt__"]:
+                    act = intent.get("__act__", "inform")
+                v = "{%s:%s:%s}"%(act, v, slot_indexes[i])
+            parts.append(v)
 
-    return _catched
+        return "".join(parts)
+    return _gen
 
-def parse_raise(node):
-    expr = expr_or_default(node["rval"], None)
-    def _raise(env):
-        val = expr(env)
-        raise Exception(val)
-
-    return _raise
-
-def parse_block_expr(node):
-    if node["type"] == 'IF':
-        val = parse_if(node)
-    elif node["type"] == 'WHILE': 
-        val = parse_while(node)
-    elif node["type"] == "FOR":
-        val = parse_for(node)
-    elif node["type"] in ["BREAK", "CONTINUE", "RETURN"]:
-        val = parse_flow_goto(node)
-    elif node["type"] == "MATCH":
-        val = parse_match(node)
-    elif node["type"] in ("ASSIGN", "GASSIGN"):
-        val = parse_assign(node)
-    elif node["type"] == 'IF_ONELINE':
-        val = parse_if_oneline(node)
+def parse_bin_body_helper(ele, slot):
+    if ele["tp"] == "JOINT_RULE_BODY":
+        ans = parse_joint_body(ele, slot, {})
     else:
-        val = parse_expr_or_command(node)
-    return val
+        ans = parse_rule_ele(ele)
+    return ans
 
-def parse_expr_or_command(node):
-    if node["type"] == "ASSERT":
-        val = parse_assert(node)
-    elif node["type"] == "DEL":
-        val = parse_del(node)
-    elif node["type"] == "SH":
-        val = parse_sh(node)
-    elif node["type"] == "CD":
-        val = parse_cd(node)
-    elif node["type"] == "RAISE":
-        val = parse_raise(node)
+def parse_bin_body(node):
+    ele_funcs = [ parse_bin_body_helper(ele, {}) for ele in node["val"] ]
+    def _gen(env):
+        parts = [ele(env) for ele in ele_funcs]
+        return random.choice(parts)
+    return _gen
+
+def parse_comp_ele(node):
+    val, op_f = node["val"], node["op"]
+    #op_f = builtin.op_funcs[op]
+    if val["tp"] in ["PARN", "REF", "VAR", "RE_DOT"]:
+        bval = parse_rule_ele(val)
+        return op_f(bval)
+    elif val["tp"] == "CONSTANT":
+        r_val = val["val"]
+        pre = "".join(r_val[0:-1])
+        bval = lambda env: r_val[-1]
+        return lambda env: pre + op_f(bval)(env)
     else:
-        val = parse_pipe_or_expr(node)
-    return val
+        Error("comp ele type %s"%val["tp"])
 
-def parse_pipe_or_expr(node):
-    if node["type"] == "PIPE":
-        return parse_pipe(node)
-    elif node["type"] == "CATCHED":
-        return parse_catched(node)
-    else:
-        return parse_simple_expr(node)
+def gen_a_pre_or_suf(env):
+    return ""
 
-def parse_pipe(node):
-    g_exprs = list(map(parse_simple_expr, node["exprs"]))
-    g_ops  = list(map(parse_bi_oper, node["pipes"]))
+def get_env_var(env, val):
+    if val not in env:
+        print(env.keys())
+    return env["__RULE__"][val]
 
-    def _eval_pipe(env):
-        exprs, ops = copy.copy(g_exprs), copy.copy(g_ops)
-        return compute_expr(env, exprs, ops)
+def get_a_dot(env):
+    if env["__SLOT_WORDS__"] and "__RE_DOT__" in env["__SLOT_WORDS__"]:
+        return random.choice(env["__SLOT_WORDS__"]["__RE_DOT__"])
+    return ""
 
-    return exception_warp(_eval_pipe, node["msg"])
-
-def parse_simple_expr(node):
-    if node["type"] == "SIMPLEIF":
-        val = parse_simpleif_expr(node)
-    elif node["type"] == "BIEXPR":
-        val = parse_binary_expr(node)
-    else:
-        val = parse_unary(node)[1]
-    return val
-
-def expr_or_default(node, default_val):
-    if node:
-        return parse_pipe_or_expr(node)
-    return lambda env: default_val
-
-def parse_assert(node):
-    rval = parse_pipe_or_expr(node["rval"])
-    msg = parse_pipe_or_expr(node["info"]) if node["info"] else lambda env:None
-
-    def _assert_condition(env):
-        cond = rval(env)
-        if not cond:
-            raise Assert_exception(cond, msg(env))
-
-    return _assert_condition
-
-def parse_flow_goto(node):
-    def _raise_error(val):
-        raise val
-
-    if node["type"] == "RETURN":
-        rval = expr_or_default(node["rval"], None)
-        return lambda env: _raise_error(Return_exception(rval))
-    elif node["type"] == "BREAK":
-        val = Break_exception()
-    else:
-        val = Continue_exception()
-
-    cond = expr_or_default(node["cond"], True)
-    return lambda env: _raise_error(val) if cond(env) else None
-
-def parse_match(node):
-    tomatch_val_func = parse_pipe_or_expr(node["val"])
-    match_cases_func = parse_case_match_expr(node["cases"])
-    msg = node["msg"]
-
-    def _match(env):
-        tomatch_val = tomatch_val_func(env)
-        cond_flag, matched_variables = match_cases_func(tomatch_val)
-        if cond_flag:
-            env.update(matched_variables)
-        else:
-            Error("Match Error: %s"%msg)
-
-    return _match
-    
-def parse_case_lambda(node):
-    cases = node["cases"]
-    case_patterns = list(map(parse_case_match_expr, cases))
-    body = parse_block_or_expr(node["body"])
-    msg = node["msg"]
-    def _case_lambda(env):
-        def _match(*args):
-            new_env = Env(outer = env)
-            matched_flag = True
-            if len(args) != len(case_patterns):
-                Error("need %d accully %d args"%(len(case_patterns), len(args)))
-            for f, v in zip(case_patterns, args):
-                cond_flag, matched_variables = f(v)
-                if cond_flag:
-                    new_env.update(matched_variables)
-                else:
-                    matched_flag = False
-                    break
-
-            ans = None
-            if matched_flag:
-                ans = body(new_env)
-            del new_env
-            return ans
-        return _match
-    return _case_lambda
-
-def parse_case(node, is_lambda=False):
-    casename, argnames = node["casename"], node["args"]
-    args_num = len(argnames)
-    case_patterns = list(map(lambda x:parse_case_expr(x,args_num), node["body"]))
-
-    def _case(env):
-        def _match(*args):
-            ans = None
-            new_env = Env(outer = env)
-            new_env.update(zip(argnames, args))
-            for cond, val in case_patterns:
-                cond_flag, matched_variables = cond(new_env, args)
-                if cond_flag:
-                    new_env.update(matched_variables)
-                    ans = val(new_env)
-                    break
-
-            del new_env
-            return ans
-
-        if not is_lambda:
-            env[casename] = _match
-        else:
-            return _match
-    return _case
-
-
-def parse_case_expr(node, args_num = 0):
-
-    val = parse_block_or_expr(node["val"])
-
-    if node["type"] == "CASE_IF":
-        cond_expr = parse_pipe_or_expr(node["cases"])
-        cond = lambda env, args: (cond_expr(env), [])
-    elif node["type"] == "CASE_MULTI":
-        syntax_cond_assert( args_num >= len(node["cases"]), "args less than case patterns")
-        match_cases = list(map(parse_case_match_expr, node["cases"]))
-        cond = lambda env, args: match_multi_cases(match_cases, args)
-    else:  
-        # CASE_OTHERWISE
-        cond = lambda env, args: (True, [])
-
-    return (cond, val)
-
-def parse_case_match_expr(node):
-    if node["type"] == "LIST":
-        if len(node["val"]) == 0:
-            match_expr = lambda x: (x == () or x == [], [])
-        else:
-            match_expr = parse_case_list(node["val"])
-    elif node["type"] in ["TUPLE", "PARN"]:
-        match_expr = parse_case_tuple(node["val"])
-    else:
-        match_expr = parse_case_atom(node)
-    return match_expr
-
-def parse_case_atom(node):
-    if node["type"] == "VAR":
-        var_name = node["name"]
-        return lambda to_match_value: (True, [(var_name, to_match_value)])
-    elif node["type"] == "TYPE_VAR":
-        var_name = node["name"]
-        try:
-            var_tp = eval(node["var_type"])
-        except:
-            Error("undefined type %s"%node["var_type"])
-        return lambda to_match_value: (type(to_match_value) == var_tp, [(var_name, to_match_value)])
-    else:
+def parse_rule_ele(node):
+    if node["tp"] == "PARN":
+        return parse_rule_body(node["val"], None, {})
+    elif node["tp"] == "FANG":
+        return lambda env: ""
+    elif node["tp"] == "CONSTANT":
         val = node["val"]
-        return lambda to_match_value: (to_match_value == val, [])
-
-def parse_case_list(node):
-    left, last = node[0:-1], node[-1]
-    left_length = len(left)
-    left_matched = parse_case_tuple(left)
-    last_matched = parse_case_match_expr(last)
-
-    def _match_list(to_match_value):
-        if type(to_match_value) not in [list, tuple]:  return (False, None)  # now only support list, tuple
-        flag = left_matched(to_match_value[0: left_length])
-        if not flag[0]: return (False, None)
-        flag_last = last_matched(to_match_value[left_length:])
-        if not flag[0]: return (False, None)
-        return (True, flag[1] + flag_last[1])
-    
-    if left_length == 0:
-        return last_matched
-    return _match_list
-
-def match_multi_cases(match_pattern_cases, vals):
-    matched_variables = []
-    for m,v in zip(match_pattern_cases, vals):
-        flag = m(v)
-        if not flag[0]: return (False, [])
-        matched_variables += flag[1]
-    return (True, matched_variables)
-
-def parse_case_tuple(node):
-    to_match_patterns = list(map(parse_case_match_expr, node))
-
-    def _match_tuple(to_match_value):
-        # now only support list, tuple
-        if type(to_match_value) not in [list, tuple]:  return (False, [])  
-        if len(to_match_value) != len(to_match_patterns): return (False, [])
-        return match_multi_cases(to_match_patterns, to_match_value)
-
-    return _match_tuple
-    
-def parse_module(node):
-    package_name, module_names, as_names = node["module_name"], node["import"], node["as"]
-    as_names = as_names + module_names + [package_name]
-
-    def _load_module(env):
-        package = __import__(package_name)
-        if len(module_names) == 0:
-            env[as_names[0]] = package
-        else:
-            for m,a in zip(module_names, as_names):
-                env[a] = package.__getattribute__(m)
-
-    return _load_module
-            
-def parse_import(node):
-
-    import sys, os
-    def python_import(_from, _import, _as):
-        if _from: 
-            fromlist = _from.split(".")
-            top_module = __import__(_from, fromlist = fromlist)
-        _import_str, _import_val = "", [] 
-        for tkn in _import:
-            if tkn.tp == "SEP":
-                syntax_cond_assert(_import_str != "")
-                _import_val.append(_import_str)
-                _import_str = ""
-            else:
-                _import_str += tkn.val
-
-        if _import_str: _import_val.append(_import_str)
-
-        env = {}
-        syntax_cond_assert( len(_as) == 0 or len(_as) == len(_import_val) )
-        as_name = _as + [None]*len(_import_val)
-        for t,g in zip(_import_val, as_name):
-            sub_modules = t.split(".")
-            nm = g if g else sub_modules[-1]
-            if _from: env[nm] = top_module.__getattribute__(t)
-            else:     env[nm] = __import__(t, fromlist=sub_modules)
-        return env
-            
-    def user_import_py(path, _as):
-        from importlib.machinery import SourceFileLoader
-        return SourceFileLoader(_as, path).load_module()
-
-    def user_import_psh(path, module_name):
-        from eval_ast import load_psh_file
-        def _load(env):
-            env.update({ module_name: load_psh_file(path, env) })
-        return _load
-
-    """  not neccssily
-    def user_import_package(path, file_suffix):
-        if file_suffix == ".py":
-            return user_import_py(path + file_suffix, _as)
-        elif file_suffix == ".psh":
-            return user_import_psh(path)
-        else:
-            onlyfiles = [ f for f in os.listdir(path) ]
-            env[_as] = user_import_package(path)
-    """
-
-    _from, _import, _as = node["from"], node["import"], node["as"]
-    module = {}
-    if _from or _import[0].tp != "STRING":
-        module = python_import(_from, _import, _as)
-        return lambda env: env.update(module)
+        return lambda env: val
+    elif node["tp"] == "VAR":
+        val = node["val"]
+        return lambda env: env["__RULE__"][val](env)
+        #return lambda env: get_env_var(env, val)
+    elif node["tp"] == "REF":
+        val = node["val"]
+        return lambda env: random_a_slot(env, val)
+        #return lambda env: "${%s}"%val
+    elif node["tp"] == "COMP":
+        return parse_comp_ele(node)
+    elif node["tp"] == "RE_DOT":
+        return get_a_dot
+    elif node["tp"] == "P0":
+        return lambda env: ""
     else:
-        syntax_cond_assert(len(_as) <= 1, "User Import Error: too many names after AS")
-        path = _import[0].val.strip()
-        syntax_cond_assert(os.path.isfile(path),  "Error: path %s is not a file"%path)
-        if len(_as) == 1:
-            module_name = _as[0]
-        else:
-            module_name = os.path.split(path)[1].split(".")[0]
-
-        if path.endswith(".py"):
-            module_context = user_import_py(path, module_name)
-            return lambda env: env.update({module_name: module_context})
-        elif path.endswith(".psh"):
-            return user_import_psh(path, module_name)
-        else:
-            Error("expected py or psh file")
-
-def parse_assign(node):
-    if node["val"]["type"] in ("ASSIGN", "GASSIGN"):
-        val = parse_assign(node["val"])
-    else:
-        val = parse_pipe_or_expr(node["val"])
-    var_idx_val = None
-    def _assign_var(env):
-        right_val = val(env)
-        if node["type"] == "GASSIGN":
-            env = env.globals
-        env[var] = right_val
-        return right_val
-    
-    def _assign_expr_val(env):
-        right_val = val(env)
-        left_idx =  var_idx_val(env)
-        if node["type"] == "GASSIGN":
-            env = env.globals
-        left_val = var_val(env)
-        left_val[left_idx] = right_val
-        return right_val
-
-    def _assign_unpack(env):
-        right_val = val(env)
-        if node["type"] == "GASSIGN":
-            env = env.globals
-        env.update(lst_combine(vars_tuple, right_val))
-        return right_val
-
-    if node["var"]["type"] == "VAR":
-        var = node["var"]["name"] 
-        return _assign_var
-    elif node["var"]["type"] == "TUPLE":
-        vars_tuple = []
-        for ele in node["var"]["val"]:
-            if ele["type"] != "VAR":
-                Error("multi assign only support variables, like a,b,c")
-            vars_tuple.append(ele["name"])
-        return _assign_unpack
-    else:
-        var = node["var"]
-        syntax_cond_assert(var["type"] == "UNARY" and len(var["suffix"]) > 0, "assign: left value is invalid")
-        var_idx = var["suffix"][-1]
-        var["suffix"] = var["suffix"][0:-1]
-        syntax_cond_assert(var_idx["type"] == "LIST", "assign: left value is invalid")
-        syntax_cond_assert(len(var_idx["val"]) == 1,  "assign: left value is invalid")
-        var_idx_val = parse_pipe_or_expr(var_idx["val"][0])
-        var_val = parse_pipe_or_expr(var)
-        return _assign_expr_val
-
-def lst_combine(var, v):
-    syntax_cond_assert(len(var) == len(v), "Value error: unpack %d values with %d variables"%(len(var), len(v)) )
-    return list(zip(var, v))
-
-def parse_simpleif_expr(node):
-    cond = parse_simple_expr(node["cond"])
-    then = parse_simple_expr(node["then"])
-    if node["else"] != None: else_t = parse_simple_expr(node["else"])
-    else:                    else_t = lambda env: None
-    return lambda env: then(env) if cond(env) else else_t(env)
-
-def parse_bi_oper(node):
-    op_info = {"name": node["val"], 
-               "order": op_order[node["val"] ],
-               "right": node["val"] in op_right,
-               "func" : Binary[node["val"]] }
-    return op_info
-
-
-def compute_expr(env, vals, ops):
-    def binary_order(left, preorder):
-        if len(ops) <= 0: return left
-        if preorder > ops[0]["order"] or \
-             (preorder == ops[0]["order"] and not ops[0]["right"]): 
-             return left
-        my_op = ops.pop(0)
-
-        # Logic short circuit
-        if (my_op["name"] == 'OR' and left ) or (my_op["name"] == 'AND' and (not left)):
-            return left
-
-        right = vals.pop(0)(env)
-        if len(ops) > 0:
-            his_op = ops[0]
-            if his_op["order"] > my_op["order"] or \
-                (his_op["order"] == my_op["order"] and his_op["right"]):
-                right = binary_order(right, my_op["order"])
-
-        op_func = my_op["func"](env) if my_op["name"] == "PIPE_ASSIGN" else my_op["func"]
-        new_left = op_func(left,right)
-        return binary_order(new_left, preorder)
-
-    val = binary_order(vals.pop(0)(env), -1)
-    del vals, ops
-    return val
-
-
-def parse_binary_expr(node):
-    g_flag_vals = list(map(parse_unary, node["val"]))
-    g_ops  = list(map(parse_bi_oper, node["op"]))
-    g_vals = []
-
-    partial_idx  = -1
-    for i in range(len(g_flag_vals)):
-        g_vals.append(g_flag_vals[i][1])
-        if g_flag_vals[i][0] == "PARTIAL":
-            syntax_cond_assert(partial_idx < 0, "partial binary expression can only have one unknown arg")
-            partial_idx = i
-    
-    def ori_warpper(env):
-        vals, ops = copy.copy(g_vals), copy.copy(g_ops)
-        return compute_expr(env, vals, ops)
-
-    def partial_warpper(env):
-        def warpper(v):
-            vals, ops = copy.copy(g_vals), copy.copy(g_ops)
-            vals[partial_idx] = lambda env: g_vals[partial_idx](env)(v)
-            return compute_expr(env, vals, ops)
-        return warpper
-
-    func = ori_warpper if partial_idx < 0 else partial_warpper
-    return exception_warp(func, node["msg"])
-
-def parse_args(node):
-    syntax_cond_assert(node["type"] in ("ARGS", "TUPLE", "PARN", "PARTIAL"), "error type")
-    arg_vals = list(map(parse_pipe_or_expr, node["val"]))
-    default_vals = []
-    if "default_vals" in node:
-        default_vals = list(map(parse_pipe_or_expr, node["default_vals"]))
-
-    partial_idx = []
-    for i,t in enumerate(arg_vals):
-        if t is PARTIAL_FLAG_LAMBDA:
-            partial_idx.append(i)
-
-    def _args(env):
-        r_default = {}
-        if "default_args" in node:
-            r_default_vals = [f(env) for f in default_vals]
-            r_default = dict(zip(node["default_args"], r_default_vals))
-        r_arg_vals = [f(env) for f in arg_vals]
-        return (r_arg_vals, r_default)
-
-    return _args, tuple(partial_idx)
-
-
-# 返回第一个值
-def parse_parn(node):
-    syntax_cond_assert(len(node["val"]) == 1 , "error: empty parn")
-    parn_node = parse_pipe_or_expr(node["val"][0])
-    return lambda env: parn_node(env)
-    
-def parse_suffix_op(op):
-    if op["type"] in ("PARN", "TUPLE", "ARGS"):
-        snv, _ = parse_args(op)
-        return lambda env: lambda f: Unary["CALL"](f, snv(env))
-    elif op["type"] == "PARTIAL":
-        return parse_partial(op)
-    elif op["type"] == "DOT":
-        return lambda env: lambda x: x.__getattribute__(op["attribute"])
-    else:
-        snv = parse_list(op["val"])
-        return lambda env: lambda v: Unary["GET"](v, snv(env))
-
-def parse_partial(node):
-    h_args, p_args_idx = parse_args(node)
-    p_args_num = len(p_args_idx)
-    def _fdo(env, f):
-        args, default_args = h_args(env)
-        def _do(*p_args, **key_args):
-            if p_args_num != len(p_args): Error("Expect %d args given %d"%(p_args_num, len(p_args)))
-            default_args.update(key_args)
-            for i, k in enumerate(p_args_idx):
-                args[k] = p_args[i]
-            return f(*args, **default_args)
-        return _do
-    return lambda env: lambda f: _fdo(env, f)
-
-
-def parse_unary(node):
-    if node["type"] != "UNARY": return parse_val_expr(node)
-    prefix_ops = [Unary[v] for v in node["prefix"] ]
-    prefix_ops.reverse()
-    p_flag, obj = parse_val_expr(node["obj"])
-    suffix_ops = list(map(parse_suffix_op, node["suffix"]))
-    
-    def _unary_helper(env, v):
-        for sf in suffix_ops: v = sf(env)(v)
-        for pf in prefix_ops: v = pf(v)
-        return v
-
-    def _unary(env):
-        v = obj(env)
-        return _unary_helper(env, v)
-
-    def _unary_partial(env):
-        def warpper(v):
-            return _unary_helper(env, v)
-        return warpper    
-
-    if p_flag == "PARTIAL":
-        return ("PARTIAL", exception_warp(_unary_partial, node["msg"]) )
-
-    for op in node["suffix"]:
-        if op["type"] == "PARTIAL":
-            return ("PARTIAL", exception_warp(_unary, node["msg"]))
-
-    return ("UNARY", exception_warp(_unary, node["msg"]))
-        
-# function call; var; literal value; unary operator
-def parse_val_expr(node):
-    t_type = node["type"]
-    if t_type == 'VAR':
-        return parse_var(node)
-    elif t_type == 'LIST': 
-        atom = parse_list(node["val"])
-    elif t_type == 'TUPLE':
-        atom = parse_tuple(node)
-    elif t_type == 'DICT': 
-        atom = parse_dict(node)
-    elif t_type in ("BOOL", 'NUM', 'STRING', "NONE"):
-        atom = lambda env : node["val"]
-    elif t_type == 'SYSCALL':
-        atom = parse_syscall(node)
-    elif t_type == 'SYSFUNC':
-        atom = parse_sysfunc(node)
-    elif t_type == 'LAMBDA':
-        atom = parse_lambda(node)
-    elif t_type == 'CASE_LAMBDA':
-        atom = parse_case_lambda(node)
-    elif t_type == 'PARN':
-        atom = parse_parn(node)
-    else:
-        Error("val_expr: " + t_type)
-    return ("VAL", exception_warp(atom, node["msg"]))
-
-def parse_list_comp(node):
-    interval = lambda env: 1
-    if 1 != node["interval"]:
-        interval = parse_pipe_or_expr(node["interval"])
-    beg = parse_pipe_or_expr(node["beg"])
-    end = parse_pipe_or_expr(node["end"])
-
-    def _list_range(env):
-        beg_v = beg(env)
-        end_v = end(env)
-        interval_v = interval(env)
-        return range(beg_v, end_v, interval_v)
-
-    return  exception_warp(_list_range, node["msg"])
-
-def parse_list(node_list):
-    res = []
-    for ele in node_list:
-        if ele["type"] == "LISTCOM":
-            res.append(("COMP", parse_list_comp(ele)))
-        else:
-            res.append(("ELE", parse_pipe_or_expr(ele)))
-
-    def _p_list(env):
-        v = []
-        for r in res:
-            if r[0] == "COMP": v.extend(r[1](env))
-            else:  v.append(r[1](env))
-        return v
-
-    return _p_list
-
-def parse_tuple(node):
-    val = parse_list(node["val"])
-    return exception_warp(lambda env: tuple(val(env)), node["msg"])
-
-def parse_dict(node):
-    keys = parse_list(node["key"])
-    vals = parse_list(node["val"])
-    def _dict(env):
-        return dict(zip(keys(env), vals(env)))
-    return exception_warp(_dict, node["msg"])
-        
-def parse_if_oneline(node):
-    cond_f = parse_pipe_or_expr(node["cond"])
-    do_f = parse_block_expr(node["cmd"])
-    def do_switch(env):
-        if cond_f(env):
-            do_f(env)
-    return do_switch
-
-def parse_if(node):
-    else_f = parse_block(node["else"]) if node["else"] else lambda env: None 
-    cond_f = [parse_pipe_or_expr(cond) for cond in node["cond"]] + [lambda env: True]
-    then_f = [parse_block(then) for then in node["then"]]       + [else_f]
-    cond_then_pair = list(zip(cond_f, then_f))
-    def do_switch(env):
-        for cond,then in cond_then_pair:
-            if cond(env):
-                then(env)
-                break
-    return do_switch
-
-def parse_in(node):
-    v = parse_pipe_or_expr(node["val"])
-    var = node["var"][0] if len(node["var"]) == 1 else node["var"]
-
-    def _in(env):
-        for ele in v(env):
-            yield [(var, ele)]
-
-    def _p_in(env):
-        for ele in v(env):
-            yield lst_combine(var, ele)
-
-    func =  _p_in if type(var) == list else _in
-    return exception_warp(func, node["msg"])
-
-def parse_for(node):
-    in_f = parse_in(node["in"])
-    body_f = parse_block(node["body"])
-
-    def _for(env):
-        iters = in_f(env)
-        for g in iters:
-            try:
-                env.update(g)
-                body_f(env)
-            except Continue_exception:
-                continue
-            except Break_exception:
-                break
-        
-    return _for
-
-def parse_while(node):
-    cond = parse_simple_expr(node["cond"])
-    body_f = parse_block(node["body"])
-    
-    def _while(env):
-        while cond(env):
-            try:
-                body_f(env)
-            except Continue_exception:
-                continue
-            except Break_exception:
-                break
-
-    return _while
-
-def parse_syscall(node):
-    return lambda env:osCall(node["val"])
-
-def parse_sysfunc(node):
-    return lambda env : lambda args: osCall(node["val"]% args)
-
-# Q default args
-def parse_lambda(node):
-    arg_var_list = node["args"]
-    body_f = parse_block_or_expr(node["body"])
-    def _lambda(env):
-        def proc(*arg_val_list):
-            syntax_cond_assert(len(arg_var_list) == len(arg_val_list), \
-                "unmatched arguments, need %d actually %d"%(len(arg_var_list), len(arg_val_list)))
-            new_env = Env(arg_var_list, arg_val_list, outer = env)
-            val = body_f(new_env)
-            del new_env
-            return val
-        return proc
-
-    return exception_warp(_lambda, node["msg"])
-
-def parse_var(node):
-    var = node["name"]
-    def find(env):
-        t = env.find(var)
-        if t is None: Error(var + " not find")
-        return t[var]
-    return ("PARTIAL", PARTIAL_FLAG_LAMBDA) if var == "_" else ("VAL", find)
-    
-def parse_block(node):
-    exprs = list(map(parse, node))
-    def squence_do(env):
-        for expr in exprs: 
-            val = expr(env)
-        return val    # last expr as val; same with scala
-    return squence_do
-
-def parse_def(node):
-    args_node = node["args"]
-    args = []
-    for ag in args_node["val"]:
-        if ag["type"] != "VAR": Error("syntax error in function def arguments")
-        args.append(ag["name"])
-
-    default_args, default_vals = [], []
-    if "default_args" in args_node:
-        default_vals = [parse_pipe_or_expr(v) for v in args_node["default_vals"]]
-        default_args = args_node["default_args"]
-    body_f = parse_block(node["body"])
-    fname = node["funcname"]
-
-    def _def(env):
-        r_default_vals = [a(env) for a in default_vals]
-        def proc(*args_vals, **kwargs):
-            new_env = Env(outer = env)
-            if len(args_vals) < len(args) or len(args_vals) > len(args) + len(default_args):
-                Error("%s() unexpected argument number"% fname)
-            for k,v in kwargs.items():
-                if k not in default_args:
-                    Error("%s() not defined argument %s"%(fname, k))
-            # default args
-            new_env.update(zip(default_args, r_default_vals))
-            new_env.update(zip(args + default_args, args_vals))
-            new_env.update(kwargs)
-
-            try:
-                body_f(new_env)
-            except Return_exception as r:
-                return r.value(new_env)
-            except Assert_exception as r:
-                assert r.value, r.msg
-            del new_env
-
-        env[fname] = proc
-        #return "function: " + node["funcname"]
-    return _def
+        Error("rule ele type %s"%node["tp"])
