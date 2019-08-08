@@ -20,15 +20,29 @@ var bin_expr = [ ${bin_op}, [${unary_expr}, ${bin_op}]+ ]
 
 export expr_0 = (${bin_expr}) :: [ "^$", ] => request(intent="计算器", expr="$1");
 
+
+
 !< SIMPLE >
 
 atom  =>  常量， 不含+ ， 词典， 引用的变量也必须是atom类型
 atom_plus => atom+
+var = atom | atom_plus | 词表 | var
+rule => var list，  不含？ +
+
 !< COMPLEX >
 
+atom  =>  常量， 不含+ ， 词典， 引用的变量也必须是atom类型
+atom_plus => atom+
+var => var list， atom var 不含？
+var_plus
+rule => var list，  不含？ +
 
+
+!< PROCESS >
 
 找到所有词表
+找到所有atom词
 合并可能的plus项
 
+解析结构 动态规划
 找到对应的规则
