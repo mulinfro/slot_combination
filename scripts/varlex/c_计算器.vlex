@@ -19,3 +19,16 @@ var unary_expr = [ ${unary_op}+, ${number}, ${unary_op }+ ]
 var bin_expr = [ ${bin_op}, [${unary_expr}, ${bin_op}]+ ] 
 
 export expr_0 = (${bin_expr}) :: [ "^$", ] => request(intent="计算器", expr="$1");
+
+!< SIMPLE >
+
+atom  =>  常量， 不含+ ， 词典， 引用的变量也必须是atom类型
+atom_plus => atom+
+!< COMPLEX >
+
+
+
+找到所有词表
+合并可能的plus项
+
+找到对应的规则

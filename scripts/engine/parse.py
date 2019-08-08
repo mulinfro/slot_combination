@@ -37,8 +37,8 @@ class rule_structure():
 
 class Parse():
 
-    def __init__(self):
-
+    def __init__(self, ast, ):
+        self.ast = ast
 
     def parse(key_index, tag_index):
         ast.
