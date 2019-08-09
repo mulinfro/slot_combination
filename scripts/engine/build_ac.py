@@ -1,5 +1,33 @@
 import ahocorasick
 
+class AC_matched():
+    def __init__(self, a, b, c, d):
+        self.matched_keyword = a
+        self.matched_slot = b
+        self.keyword_tag_index = c
+        self.slot_tag_index = d
+        self.keyword_i = 0
+        self.slot_i = 0
+
+    def reset_keyword_i(self):
+        self.keyword_i = 0
+
+    def reset_slot_i(self):
+        self.slot_i = 0
+
+    def get_next_valid_keyword(self):
+        pass
+
+    def get_valid_slot(self):
+        pass
+
+    def get_valid_keyword_or_slot(self):
+        pass
+
+    def get_valid_slot(self, start_index):
+        pass
+
+
 class AC():
     def __init__(self):
         self.keyword_ac = ahocorasick.Automaton()
@@ -38,7 +66,7 @@ class AC():
     def match(self, dialog):
         matched_keyword = self.match_a_ac(self.keyword_ac, dialog)
         matched_slot = self.match_a_ac(self.slot_ac, dialog)
-        return (matched_keyword, matched_slot, get_tag_idx_dict(matched_keyword), get_tag_idx_dict(matched_slot))
+        return AC_matched(matched_keyword, matched_slot, get_tag_idx_dict(matched_keyword), get_tag_idx_dict(matched_slot))
         
     def match_a_ac(self, A, dialog):
         ans = []
@@ -53,5 +81,6 @@ class AC():
         for start_index, end_index, key, tag in key_index:
             val = ans.get(tag, [])
             val.append( (start_index, end_index, key) )
+            ans[tag] = val
         return ans
         

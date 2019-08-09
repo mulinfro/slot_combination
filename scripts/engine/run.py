@@ -39,26 +39,13 @@ def run(lex_file, input_str, dict_dir):
     ac_machine = build_ac.AC()
     ac_machine.init(keywords, all_slot_entity_files)
 
-    for node in ast_tree.ast:
-        parse.parse(node)(env)
-        parse_rule_count.parse(node)(env)
+    rule_graph = Rule_structure(ast, ac_machine)
+    parser = Parse(rule_graph)
+    ans = parser.match(input_str)
+    print(ans)
 
-    out_handler = None
-    if out_file: out_handler = open(out_file, "w", encoding="utf-8")
-
-    min_rate = min_num / N
-    rules = env["__EXPORT__"]
-    distribution, total = gen_a_distribution(rules, patern_nums, min_rate)
-    for i in range(N):
-        idx = random_select_a_rule(distribution, total)
-        a_sample = rules[idx][1](env)
-        if out_handler == None:
-            print(a_sample)
-        else:
-            out_handler.write(a_sample + "\n")
-
-    if out_handler:
-        out_handler.close()
+def build_lex(lex_file, dict_dir):
+    pass
 
 if __name__ == "__main__":
     import sys
