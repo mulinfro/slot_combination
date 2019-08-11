@@ -8,24 +8,66 @@ class AC_matched():
         self.slot_tag_index = d
         self.keyword_i = 0
         self.slot_i = 0
+        self.init_keyword_i = 0
+        self.init_slot_i = 0
+        self.accept_endidx = -1
 
+    def save_state(self):
+        return (self.keyword_i, slot_i, self.accept_endidx)
+
+    def restore_state(self, state):
+        self.keyword_i = state[0]
+        self.slot_i = state[1]
+        self.accept_endidx = state[2]
+
+    def iter_init_status(self):
+        if self.init_keyword_i < len(self.matched_keyword):
+            self.keyword_i = self.init_keyword_i
+            self.init_keyword_i += 1
+            keyword = self.get_next_keyword()
+            self.accept(keyword)
+            return ("", key)
+        elif self.init_slot_i < len(self.matched_slot):
+            self.slot_i = self.init_slot_i
+            self.init_slot_i += 1
+            slot = self.get_next_slot()
+            self.accept(slot)
+            return ("$", slot)
+        else:
+            return None, None
+        
     def reset_keyword_i(self):
         self.keyword_i = 0
 
     def reset_slot_i(self):
         self.slot_i = 0
 
-    def get_next_valid_keyword(self):
-        pass
+    def get_next_keyword(self):
+        while self.keyword_i < len(self.matched_keyword) and self.matched_keyword[self.keyword_i][0] <= self.accept_endidx:
+            self.keyword_i += 1
+        if self.keyword_i < len(self.matched_keyword):
+            self.keyword_i += 1
+            return self.matched_keyword[self.keyword_i - 1]
 
-    def get_valid_slot(self):
-        pass
+    def get_next_slot(self):
+        while self.slot_i < len(self.matched_slot) and self.matched_slot[self.slot_i][0] <= self.accept_endidx:
+            self.slot_i += 1
+        if self.slot_i < len(self.matched_slot):
+            self.slot_i += 1
+            return self.matched_keyword[self.slot_i - 1]
 
-    def get_valid_keyword_or_slot(self):
-        pass
+    def get_next_keyword_or_slot(self):
+        next_keyword = self.get_next_keyword():  
+        if next_keyword is not None:
+            return ("", next_keyword )
+        next_slot = self.get_next_slot():  
+        if next_slot is not None:
+            return ("$", next_slot)
 
-    def get_valid_slot(self, start_index):
-        pass
+        return None, None
+
+    def accept(self, ele):
+        self.accept_endidx = ele[1]
 
 
 class AC():
