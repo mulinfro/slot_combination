@@ -97,8 +97,11 @@ class Parse():
     def greed_match(self, dialog):
         pass
 
-    def atom_plus_preprocess(self, dialog, AM):
-        tag_index = AM.keyword_tag_index
+    def atom_plus_preprocess(self, dialog, AM, tp = "keyword"):
+        if tp == "keyword":
+            tag_index = AM.keyword_tag_index
+        else:
+            tag_index = AM.slot_tag_index
         for ap_name, ap_tag in self.rule_graph.atom_plus:
             if ap_tag not in tag_index or len(tag_index[ap_tag]) <= 1:
                 continue
@@ -127,10 +130,26 @@ class Parse():
                     
 
     def var_plus_preprocess(self, dialog, AM):
+        ans = []
         for vp_name, vp_tag in self.rule_graph.var_plus:
-            mm = find_all_vars(AM, vp_tag)
-            if not mm: continue
+            mm = match_one_rule(AM, vp_tag)
+            if mm:
+                ans.extend(mm)
 
         
+    def match_one_rule(self, AM, vp_name, vp_tag):
+        for e in rlue_body:
+            if e["tp"] == "ATOM":
+                get_next_keyword()
+            elif e["tp"] == "REF":
+                get_next_slot()
+            elif e["tp"] == "PLUS":
+                match_plus()
+            elif e["tp"] == "VAR":
+                match_one_rule()
+
+        
+        
+
 
 
