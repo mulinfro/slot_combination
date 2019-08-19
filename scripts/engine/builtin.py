@@ -1,6 +1,4 @@
 
-import random
-
 keywords = {
      "export": "EXPORT",
      "if":     "IF",
