@@ -1,5 +1,4 @@
 
-from config import DEAUFALT_MAX_REPEAT
 import random
 
 keywords = {
@@ -7,9 +6,8 @@ keywords = {
      "if":     "IF",
      "end":    "END",
      "atom":   "ATOM",
-     "var":    "VAR",
-     "atom_plus": "ATOM_PLUS",
-     "var_plus":  "VAR_PLUS",
+     "rule":   "RULE",
+     "plus":   "PLUS",
 }
 op_alp = '|^$?+*=>.:'
 
@@ -38,15 +36,6 @@ op_type = {
 "=>": "P0",
 "::": "P0",
 }
-
-def a_b_times(a, b):
-    candi = list(range(a, b+1))
-    return lambda f: lambda env: repeat(env, f, candi)
-
-def repeat(env, f, cand_list):
-    n = random.choice(cand_list)
-    parts = [f(env) for i in range(n) ]
-    return "".join(parts)
 
 op_funcs = {
     "+": "+",

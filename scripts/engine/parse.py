@@ -121,14 +121,13 @@ class Parse():
                 if i - beg_tag_idx > 1:
                     ss_index, _, _ = ids_of_tag[beg_tag_idx]
                     _, se_index, _ = ids_of_tag[pre_tag_idx]
-                    AM.matched_keyword.append( (ss_index, se_index, dialog[ss_index: se_index+1], nm) )
+                    AM.matched_keyword.append( (ss_index, se_index, dialog[ss_index: se_index+1],ap_name) )
 
                 pre_tag_idx = i
                 beg_tag_idx = i
 
         AM.matched_keyword.sort(key = lambda x: (x[0], -x[1]) )
                     
-
     def var_plus_preprocess(self, dialog, AM):
         ans = []
         for vp_name, vp_tag in self.rule_graph.var_plus:
@@ -136,20 +135,56 @@ class Parse():
             if mm:
                 ans.extend(mm)
 
+    def match_atom(self, AM, ele):
+        while True:
+            mc = AM.get_next_keyword()
+            if not mc: break
+            dist = Am.get_word_dist(mc[0])
+            if dist > CONF.maxdist: break
+            if mc[3] == e["name"]:
+                AM.accept(mc)
+                return (mc, dist)
+
+        return (None, None)
+
+    # 可能需要考虑所有匹配到的, 然后动态规划; 
+    # 目前先优先选择候选集合中长的
+    def match_ref(self, AM, ele):
+        candi = []
+        while True:
+            mc = AM.get_next_slot()
+            if not mc: break
+            dist = Am.get_word_dist(mc[0])
+            if dist > CONF.maxdist: break
+            if mc[3] == e["name"]:
+                candi.append(mc)
+
+        return select_max_length(candi)
+
+    def match_plus(self, AM, ele):
+        ans = []
+        while True:
+            _m = match_one_rule()
+            if _m: ans.append(_m)
+            else: break
+
+        return ans
         
     def match_one_rule(self, AM, vp_name, vp_tag):
+        total_dis = 0
+        ans = []
         for e in rlue_body:
             if e["tp"] == "ATOM":
-                get_next_keyword()
+                _m = self.match_atom(AM, e)
             elif e["tp"] == "REF":
-                get_next_slot()
+                _m = self.match_ref(AM, e)
             elif e["tp"] == "PLUS":
-                match_plus()
-            elif e["tp"] == "VAR":
-                match_one_rule()
+                _m = self.match_plus()
+            elif e["tp"] == "RULE":
+                _m = self.match_one_rule()
+            else:
+                _m = None
 
-        
-        
-
-
-
+            if _m: ans.append(_m)
+            else: return []
+        return ans

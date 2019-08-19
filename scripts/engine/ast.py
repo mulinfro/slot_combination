@@ -76,7 +76,7 @@ class AST():
             tkn = stm.peek()
             if tkn.tp == 'EXPORT':
                 val = ast_export(stm)
-            elif tkn.tp == 'VAR':
+            elif tkn.tp == 'RULE':
                 val = ast_rule(stm)
             elif tkn.tp == 'ATOM':
                 val = ast_atom(stm)
@@ -84,8 +84,8 @@ class AST():
             elif tkn.tp == 'ATOM_PLUS':
                 val = ast_plus(stm, "ATOM_PLUS")
                 self.atom_plus.append(val["name"])
-            elif tkn.tp == 'VAR_PLUS':
-                val = ast_plus(stm, "VAR_PLUS")
+            elif tkn.tp == 'RULE_PLUS':
+                val = ast_plus(stm, "RULE_PLUS")
                 self.var_plus.append(val["name"])
             else:
                 Error("Unexpeted begining token %s"%tkn.val)
