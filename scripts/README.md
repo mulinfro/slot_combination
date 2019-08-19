@@ -2,7 +2,7 @@
 
 ## SYNTAX
 atom = CONSTANT + CONSTANT ? |
-atom_plus = atom+  贪心连续匹配
+plus = atom+  贪心连续匹配
 
 var = REF, atom_plus, |  [var, var]
 var_plus = var +  贪心连续匹配，允许一定间隔
@@ -24,15 +24,19 @@ rule = var list
 
 ## EXAMPLE
 
+# atom只能常量, 带?的扩展
 atom b1 = 播放
 atom b2 = 播放|打开|听下？
-atom_plus b1_p = ${b1}+
 
-var m1 = ${.歌曲}|${.英文歌曲}
-var m2 = [${atom}, ${m1} ]
-var_plus m2_p = [${atom}, ${m1} ] +
+# rule list or 或,  不允许直接嵌套， 约束灵活性为了最大化公用
+rule m1 = {.歌曲}|{.英文歌曲}
+rule m2 = [{atom}, {m1} ]
 
-rule r1 = [${b1}, ${m1} ]
+# plus atom 字典 or 变量
+plus b1_p = {b1}
+
+# export一定是个list
+export r1 = [{b1 <- W(2,5)} , {m1} ]    
 
 ## 
 key_word_list
