@@ -7,8 +7,8 @@ keywords = {
      "rule":   "RULE",
      "plus":   "PLUS",
      # default modes
-     "ANY":    "ANY",  # .*
-     "SPACE":  "SPACE",
+     "_ANY":    "ANY",  # .*
+     "_SPACE":  "SPACE",
 }
 op_alp = '|^$?+*=>.:'
 

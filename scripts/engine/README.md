@@ -36,7 +36,7 @@ rule m2 = [{atom}, {m1} ]
 plus b1_p = {b1}
 
 # export一定是个list
-export r1 = [{b1 <- W(2,5)} , {m1} ]    
+export r1 = [{b1 :: W(2,5)} , {m1} ]  => { intent=$1  }
 
 ## 
 key_word_list
