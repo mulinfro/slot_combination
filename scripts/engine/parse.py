@@ -59,8 +59,9 @@ class Parse():
 
     def match(self, dialog):
         ac_matched_ans = self.ac_machine.match(dialog)
-        self.atom_plus_preprocess(dialog, ac_matched_ans)
-        self.var_plus_preprocess(dialog, ac_matched_ans)
+        self.plus_preprocess(dialog, ac_matched_ans)
+        #self.atom_plus_preprocess(dialog, ac_matched_ans)
+        #self.var_plus_preprocess(dialog, ac_matched_ans)
         all_matched = []
         while True:
             tp, ele = ac_matched_ans.iter_init_status()
@@ -97,6 +98,19 @@ class Parse():
     def greed_match(self, dialog):
         pass
 
+    def plus_preprocess(self, dialog, AM, tp = "keyword"):
+        for ap_name in self.rule_graph.plus:
+            node = self.ast[ap_name]
+            tp = node["body"]["tp"]
+            if tp == "ATOM":
+                self.atom_plus_preprocess(dialog, AM, "keyword")
+            elif  tp == "REF":
+                self.ref_plus_preprocess(dialog, AM, "slot")
+            else:
+                self.var_plus_preprocess(dialog, AM)
+
+        AM.matched_keyword.sort(key = lambda x: (x[0], -x[1]) )
+        
     def atom_plus_preprocess(self, dialog, AM, tp = "keyword"):
         if tp == "keyword":
             tag_index = AM.keyword_tag_index
@@ -126,14 +140,12 @@ class Parse():
                 pre_tag_idx = i
                 beg_tag_idx = i
 
-        AM.matched_keyword.sort(key = lambda x: (x[0], -x[1]) )
-                    
-    def var_plus_preprocess(self, dialog, AM):
+    def var_plus_preprocess(self, dialog, AM, rule_name):
         ans = []
-        for vp_name, vp_tag in self.rule_graph.var_plus:
-            mm = match_one_rule(AM, vp_tag)
-            if mm:
-                ans.extend(mm)
+        mm = self.match_plus(AM, rule_name)
+        if mm:
+            ans.extend(mm)
+        AM.matched_keyword.append( (ss_index, se_index, dialog[ss_index: se_index+1],ap_name) )
 
     def match_atom(self, AM, ele):
         while True:
@@ -170,7 +182,11 @@ class Parse():
 
         return ans
         
-    def match_one_rule(self, AM, vp_name, vp_tag):
+    def match_one_rule(self, AM, rule_name):
+        rule = self.rule_graph.ast[rule_name]
+        tp = rule["tp"]
+        if tp == "PLUS":
+            elif
         total_dis = 0
         ans = []
         for e in rlue_body:
