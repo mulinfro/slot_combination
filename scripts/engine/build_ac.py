@@ -1,24 +1,19 @@
 import ahocorasick
 
 class AC_matched():
-    def __init__(self, a, b, c, d):
-        self.matched_keyword = a
-        self.matched_slot = b
-        self.keyword_tag_index = c
-        self.slot_tag_index = d
-        self.keyword_i = 0
-        self.slot_i = 0
-        self.init_keyword_i = 0
-        self.init_slot_i = 0
+    def __init__(self, a, b):
+        self.matched = a
+        self.word_tag_index = c
+        self._i = 0
+        self.init_i = 0
         self.accept_endidx = -1
 
     def save_state(self):
-        return (self.keyword_i, slot_i, self.accept_endidx)
+        return (self._i, self.accept_endidx)
 
     def restore_state(self, state):
         self.keyword_i = state[0]
-        self.slot_i = state[1]
-        self.accept_endidx = state[2]
+        self.accept_endidx = state[1]
 
     def iter_init_status(self):
         if self.init_keyword_i < len(self.matched_keyword):
@@ -26,7 +21,7 @@ class AC_matched():
             self.init_keyword_i += 1
             keyword = self.get_next_keyword()
             self.accept(keyword)
-            return ("", key)
+            return ("", keyword)
         elif self.init_slot_i < len(self.matched_slot):
             self.slot_i = self.init_slot_i
             self.init_slot_i += 1
@@ -43,34 +38,31 @@ class AC_matched():
         self.slot_i = 0
 
     def get_next_keyword(self):
-        while self.keyword_i < len(self.matched_keyword) and self.matched_keyword[self.keyword_i][0] <= self.accept_endidx:
+        while self.keyword_i < len(self.matched) and self.matched[self.keyword_i][0] <= self.accept_endidx:
             self.keyword_i += 1
-        if self.keyword_i < len(self.matched_keyword):
+        if self.keyword_i < len(self.matched):
             self.keyword_i += 1
-            return self.matched_keyword[self.keyword_i - 1]
+            return self.matched[self.keyword_i - 1]
 
     def get_next_slot(self):
-        while self.slot_i < len(self.matched_slot) and self.matched_slot[self.slot_i][0] <= self.accept_endidx:
+        while self.slot_i < len(self.matched) and self.matched[self.slot_i][0] <= self.accept_endidx:
             self.slot_i += 1
-        if self.slot_i < len(self.matched_slot):
+        if self.slot_i < len(self.matched):
             self.slot_i += 1
-            return self.matched_keyword[self.slot_i - 1]
+            return self.matched[self.slot_i - 1]
 
-    def get_next_keyword_or_slot(self):
-        next_keyword = self.get_next_keyword():  
-        if next_keyword is not None:
-            return ("", next_keyword )
-        next_slot = self.get_next_slot():  
-        if next_slot is not None:
-            return ("$", next_slot)
-
-        return None, None
+    def get_next(self):
+        while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
+            self._i += 1
+        if self._i < len(self.matched):
+            self._i += 1
+            return self.matched[self._i - 1]
 
     def accept(self, ele):
         self.accept_endidx = ele[1]
 
     def get_word_dist(self, new_dist):
-        return new_dist - self.accept_endidx
+        return new_dist - self.accept_endidx - 1
 
 class AC():
     def __init__(self):
@@ -108,16 +100,17 @@ class AC():
         self.make()
 
     def match(self, dialog):
-        matched_keyword = self.match_a_ac(self.keyword_ac, dialog)
-        matched_slot = self.match_a_ac(self.slot_ac, dialog)
-        return AC_matched(matched_keyword, matched_slot, get_tag_idx_dict(matched_keyword), get_tag_idx_dict(matched_slot))
+        matched = self.match_a_ac(self.keyword_ac, dialog, "KEY")
+        matched_slot = self.match_a_ac(self.slot_ac, dialog, "REF")
+        matched.extend(matched_slot)
+        matched.sort(key = lambda x: (x[0], -x[1]) )
+        return AC_matched(matched, get_tag_idx_dict(matched))
         
-    def match_a_ac(self, A, dialog):
+    def match_a_ac(self, A, dialog, word_tp):
         ans = []
         for end_index, (tag, key_length) in A.iter(t):
             start_index = end_index - key_length + 1
-            ans.append((start_index, end_index, dialog[start_index: end_index+1], tag))
-        ans.sort(key = lambda x: (x[0], -x[1]) )
+            ans.append((start_index, end_index, dialog[start_index: end_index+1], tag, word_tp))
         return ans
 
     def get_tag_idx_dict(self, key_index):

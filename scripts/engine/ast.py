@@ -137,7 +137,7 @@ class AST():
                 syntax_check(stm.next(), ("SEP", "COMMA"))
             if stm.eof(): break
         syntax_cond_assert(len(body) >= 1, "empty parn")
-        return body
+        return {"tp":"LIST", "body": body }
 
     #还没有支持
     def try_ast_or(self, stm):
