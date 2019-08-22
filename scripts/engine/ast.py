@@ -61,11 +61,11 @@ def get_cross_ele(lst, all_sets, i):
 class AST():
 
     def __init__(self, stm):
-        self.stm = stm
         self.word_refs = []
         self.atom = []
         self.plus = []
         self.ast = {}
+        self.build_ast(stm)
 
     def build_ast(self, stm):
         ast = []
@@ -74,14 +74,14 @@ class AST():
             if stm.eof(): break
             tkn = stm.peek()
             if tkn.tp == 'EXPORT':
-                val = ast_export(stm)
+                val = self.ast_export(stm)
             elif tkn.tp == 'RULE':
-                val = ast_rule(stm)
+                val = self.ast_rule(stm)
             elif tkn.tp == 'ATOM':
-                val = ast_atom(stm)
+                val = self.ast_atom(stm)
                 self.atom.append(val["name"])
             elif tkn.tp == 'PLUS':
-                val = ast_plus(stm)
+                val = self.ast_plus(stm)
                 self.plus.append(val["name"])
             else:
                 Error("Unexpeted begining token %s"%tkn.val)

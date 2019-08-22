@@ -66,9 +66,9 @@ class AC():
         for line in open(f):
             line = line.strip()
             exists_flag = self.slot_ac.get(line, None)
-            if exists_flag is None:
+            if exists_flag is not None:
                 if tag not in exists_flag[0]:
-                exists_flag[0].append(tag)
+                    exists_flag[0].append(tag)
                 self.slot_ac.add_word(line, (exists_flag, len(line)))
             else:
                 self.slot_ac.add_word(line, ([tag], len(line)))

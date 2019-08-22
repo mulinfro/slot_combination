@@ -135,33 +135,9 @@ class Parse():
         return best_ans
 
 
-    """
     # 递归实现
     def max_match_rec(self, tp, matched_eles, AM):
-        matched_tp = ""
-        best_ans = None
-        is_accept = False
-        while not is_accept:
-            tag_type, ele = AM.get_next()
-            #if self.get_word_dist(ele[0]) > self.conf.max_match_dist:
-            #    break
-            if tag_type is None: break
-
-            for ele_tp in ele[3]:
-                new_tp = "%s_%s%s"%(tp, tag_type, ele_tp)
-                if new_tp in self.rule_fingerprint:
-                    matched_eles.append(ele)
-                    AM.accept(ele)
-                    is_accept = True
-                    if self.rule_fingerprint[new_tp]:
-                        matched_tp = new_tp
-                        best_ans = matched_eles[0:]
-                    self.max_match_rec(new_tp, matched_eles, AM)
-
-            matched_eles.append(ele)
-        return matched_tp, best_ans
-    """
-
+        pass
 
     def search_match(self, dialog):
         pass

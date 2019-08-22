@@ -34,6 +34,12 @@ def run(lex_file, input_str, dict_dir):
     tokens = token_list(script).tokens
     ast_tree = ast.AST(stream(tokens))
 
+    print(ast_tree.atom)
+    print(ast_tree.plus)
+    for k,m in ast_tree.ast.items():
+        print(k, m)
+
+    return 0
     all_slot_entity_files = glob.glob(dict_dir + "/*.txt")
     keywords = ast.extract_all_atoms(ast_tree)
     ac_machine = build_ac.AC()
@@ -59,6 +65,6 @@ if __name__ == "__main__":
         elif ARGV[i] == "-d":
             dict_dir = ARGV[i+1]
 
-    syntax_cond_assert(input_str is not None, "need input lex file")
-    syntax_cond_assert(lex_file is not None, "need output samples number")
+    syntax_cond_assert(lex_file is not None, "need input lex file")
+    syntax_cond_assert(input_str is not None, "need input str")
     run(lex_file, input_str, dict_dir)
