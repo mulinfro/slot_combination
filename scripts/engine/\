@@ -17,18 +17,8 @@ class Rule_structure():
 
     def get_one_rule_sign(self, rule):
         tp = rule["tp"]
-        body = rule["body"]
-        if body["tp"] == "LIST":
-            return self.get_rule_list_sign(rule)
-
-        return ""
-             
-    def get_rule_list_sign(self, rule):
-        ans = []
         for ele in rule["body"]:
-            t = self.get_rule_ele_sign(ele)
-            ans.append(t)
-        return "_".join(ans)
+             
 
     def get_rule_ele_sign(self, rule):
         tp = rule["tp"]
@@ -38,14 +28,10 @@ class Rule_structure():
             return "1" + tp["name"]
         elif tp == "PLUS":
             return "2" + tp["name"]
-        elif tp == "RULE":
-            body = tp["body"]
-            return self.get_rule_ele_sign(body)
-        elif tp == "LIST":
-            return self.get_rule_list_sign(rule)
         elif tp == "VAR":
-            name = tp["name"]
-            return self.get_rule_ele_sign(self.ast[name])
+        name = tp["body"]
+            return self.get_rule_ele_sign()
+
 
     def get_rule_sign(self, ast):
         all_signs = []

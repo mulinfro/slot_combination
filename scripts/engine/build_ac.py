@@ -12,44 +12,31 @@ class AC_matched():
         return (self._i, self.accept_endidx)
 
     def restore_state(self, state):
-        self.keyword_i = state[0]
+        self._i = state[0]
         self.accept_endidx = state[1]
 
     def iter_init_status(self):
-        if self.init_keyword_i < len(self.matched_keyword):
-            self.keyword_i = self.init_keyword_i
-            self.init_keyword_i += 1
-            keyword = self.get_next_keyword()
+        if self.init_i < len(self.matched):
+            self.init_i += 1
+            self._i = self.init_i
+            keyword = self.matched[self._i - 1]
             self.accept(keyword)
-            return ("", keyword)
-        elif self.init_slot_i < len(self.matched_slot):
-            self.slot_i = self.init_slot_i
-            self.init_slot_i += 1
-            slot = self.get_next_slot()
-            self.accept(slot)
-            return ("$", slot)
-        else:
-            return None, None
+            return keyword
+
+    def get_cur(self):
+        while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
+            self._i += 1
+        if self._i < len(self.matched):
+            return self.matched[self._i - 1]
         
-    def reset_keyword_i(self):
-        self.keyword_i = 0
-
-    def reset_slot_i(self):
-        self.slot_i = 0
-
-    def get_next_keyword(self):
-        while self.keyword_i < len(self.matched) and self.matched[self.keyword_i][0] <= self.accept_endidx:
-            self.keyword_i += 1
-        if self.keyword_i < len(self.matched):
-            self.keyword_i += 1
-            return self.matched[self.keyword_i - 1]
-
-    def get_next_slot(self):
-        while self.slot_i < len(self.matched) and self.matched[self.slot_i][0] <= self.accept_endidx:
-            self.slot_i += 1
-        if self.slot_i < len(self.matched):
-            self.slot_i += 1
-            return self.matched[self.slot_i - 1]
+    def get_typeed_next(self, tp):
+        while self._i < len(self.matched):
+            km = self.matched[self._i]
+            if km[0] <= self.accept_endidx or km[3] != tp:
+                self.keyword_i += 1
+        if self._i < len(self.matched):
+            self._i += 1
+            return self.matched[self._i - 1]
 
     def get_next(self):
         while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
@@ -100,8 +87,8 @@ class AC():
         self.make()
 
     def match(self, dialog):
-        matched = self.match_a_ac(self.keyword_ac, dialog, "KEY")
-        matched_slot = self.match_a_ac(self.slot_ac, dialog, "REF")
+        matched = self.match_a_ac(self.keyword_ac, dialog, "0")
+        matched_slot = self.match_a_ac(self.slot_ac, dialog, "1")
         matched.extend(matched_slot)
         matched.sort(key = lambda x: (x[0], -x[1]) )
         return AC_matched(matched, get_tag_idx_dict(matched))
@@ -110,7 +97,7 @@ class AC():
         ans = []
         for end_index, (tag, key_length) in A.iter(t):
             start_index = end_index - key_length + 1
-            ans.append((start_index, end_index, dialog[start_index: end_index+1], tag, word_tp))
+            ans.append((start_index, end_index, tag, word_tp))
         return ans
 
     def get_tag_idx_dict(self, key_index):
