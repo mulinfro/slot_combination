@@ -174,7 +174,7 @@ class AST():
         while True:
             sub_eles = []
             while not stm.eof():
-                tkn = stm.peek()
+                tkn = stm.next()
                 if tkn.tp == "STR":
                     sub_eles.append(tkn.val)
                 elif is_candi_op(tkn, "?"):
@@ -183,8 +183,9 @@ class AST():
                     if stm.lookahead().val == "?": sub_eles.append("")
                     break
                 else:
-                    Error("atom ele")
-                stm.next()
+                    stm.back()
+                    syntax_assert(tkn, "SEP")
+                    break
             eles.extend(get_cross_ele(sub_eles, [], 0) )
             if is_rule_end(stm): break
 
