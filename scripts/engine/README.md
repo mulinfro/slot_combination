@@ -44,3 +44,8 @@ key_word_list
 
 word_set
 [beg_idx, end_idx, string, tag_list]
+
+
+## 
+三种模式:严格; 不大于距离;  中间没有其他有效keyword; 一次算不算
+只在export支持 | ;

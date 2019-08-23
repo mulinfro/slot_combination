@@ -106,8 +106,9 @@ class AC():
     def get_tag_idx_dict(self, key_index):
         ans = {}
         for start_index, end_index, key, tag in key_index:
-            val = ans.get(tag, [])
-            val.append( (start_index, end_index, key) )
-            ans[tag] = val
+            for kk in key:
+                val = ans.get(kk, [])
+                val.append( (start_index, end_index, tag) )
+                ans[kk] = val
         return ans
         

@@ -1,3 +1,4 @@
+from syntax_check import Error
 
 class Rule_structure():
 
@@ -84,6 +85,7 @@ class Parse():
 
     def match(self, dialog):
         self.basic_set(dialog)
+        print(self.AM.matched)
 
         all_matched = []
         while True:
@@ -136,53 +138,85 @@ class Parse():
     def search_match(self, dialog):
         pass
 
+    def get_ast_body(self, node):
+        bd = node["body"]
+        if bd["tp"] == "VAR":
+            return self.rule_graph.ast[bd["name"]]
+        else:
+            return bd
+
     def plus_preprocess(self):
         for ap_name in self.rule_graph.plus:
             node = self.rule_graph.ast[ap_name]
-            tp = node["body"]["tp"]
-            if tp == "ATOM":
-                self.atom_plus_preprocess(node, "keyword")
-            elif  tp == "REF":
-                self.atom_plus_preprocess(node, "slot")
+            bd = self.get_ast_body(node)
+            if bd["tp"] == "ATOM":
+                self.atom_plus_preprocess(bd, [ap_name], "keyword")
+            elif  bd["tp"] == "REF":
+                self.atom_plus_preprocess(bd, "slot")
             else:
-                self.var_plus_preprocess(node)
+                self.var_plus_preprocess(bd)
 
         self.AM.matched.sort(key = lambda x: (x[0], -x[1]) )
         
-    def atom_plus_preprocess(self, node, tp = "keyword"):
-        if tp == "keyword": tag_index = self.AM.keyword_tag_index
-        else:               tag_index = self.AM.slot_tag_index
-
-        ap_name, ap_tag = node["name"], node["body"]["name"]
+    def atom_plus_preprocess(self, node, tag, tp = "keyword"):
+        tag_index = self.AM.word_tag_index
+        ap_tag = node["name"]
         if ap_tag not in tag_index or len(tag_index[ap_tag]) <= 1:
             return None
 
         ids_of_tag = tag_index[ap_tag]
         # 找到所有的atom plus
         pre_tag_idx = beg_tag_idx = 0
-        for i in range(1, len(tag_index[ap_tag])):
-            start, end, key = ids_of_tag[i]
+        cnt = 1
+        for i in range(1, len(ids_of_tag)):
+            start, end, _ = ids_of_tag[i]
             pre_end= ids_of_tag[pre_tag_idx][1] + 1
             if start < pre_end:
                 pass
             elif start == pre_end:
                 pre_tag_idx = i
+                cnt += 1
             else:
-
-                if i - beg_tag_idx > 1:
+                if cnt > 1:
                     ss_index, _, _ = ids_of_tag[beg_tag_idx]
                     _, se_index, _ = ids_of_tag[pre_tag_idx]
-                    self.AM.matched.append( (ss_index, se_index, ap_name, "2") )
+                    self.AM.matched.append( (ss_index, se_index, tag, "2") )
 
                 pre_tag_idx = i
                 beg_tag_idx = i
+                cnt = 1
+
+        if cnt > 1:
+            self.AM.matched.append((ids_of_tag[beg_tag_idx][0], ids_of_tag[pre_tag_idx][1], tag, "2") )
+
 
     def var_plus_preprocess(self, node):
         while True:
+            ans = []
+            #p_rule = rule["body"]
+            while True:
+                _m, _d = self.S_match(rule)
+                if _m and _d < self.rule_graph.config.VAR_PLUS_MAX_DIST: ans.append(_m)
+                else: break
+
+            return self.merge_ele(ans, rule["name"])
             mm = self.S_match_plus(node)
+            print("MM", node, mm)
             if not mm: break
             self.AM.matched.append(mm )
 
+
+    def S_match_seen_plus(self, rule):
+        while True:
+            mc = self.AM.get_typeed_next("2")
+            if not mc: break
+            dist = self.AM.get_word_dist(mc[0])
+            if dist > self.rule_graph.config.VAR_PLUS_MAX_DIST: break
+            if rule["name"] in mc[2]:
+                self.AM.accept(mc)
+                return (mc, dist)
+
+        return (None, None)
 
     def S_match_atom(self, rule):
         while True:
@@ -212,9 +246,9 @@ class Parse():
 
     def S_match_plus(self, rule):
         ans = []
-        p_rule = rule["body"]
+        #p_rule = rule["body"]
         while True:
-            _m, _d = self.S_match(p_rule)
+            _m, _d = self.S_match(rule)
             if _m and _d < self.rule_graph.config.VAR_PLUS_MAX_DIST: ans.append(_m)
             else: break
 
@@ -227,12 +261,13 @@ class Parse():
         elif tp == "REF":
             _m, _d = self.S_match_ref(rule)
         elif tp == "VAR":
-            _m, _d = self.S_match( self.rule_graph.ast[rule["name"]] )
+            _m, _d = self.S_match(self.rule_graph.ast[rule["name"]] )
         elif tp == "PLUS":
-            _m, _d = self.S_match_plus(rule)
+            _m, _d = self.S_match_seen_plus(rule)
         elif tp == "RULE":
             _m, _d = self.S_match_one_rule(rule)
-
+        else:
+            Error("rule %s"%str(rule))
         return _m, _d
 
     def merge_ele(self, lst, tag):
