@@ -40,7 +40,7 @@ def skip_tkns(stm, candi):
 def extract_all_atoms(ast):
     slots = {}
     for atom_name in ast.atom:
-        for atom_value in ast.ast[atom_name]:
+        for atom_value in ast.ast[atom_name]["body"]:
             tag = slots.get(atom_value, [])
             if atom_name not in tag:
                 tag.append(atom_name)

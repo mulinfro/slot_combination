@@ -39,26 +39,32 @@ class Rule_structure():
     def get_rule_ele_sign(self, rule):
         tp = rule["tp"]
         if tp == "ATOM":
-            return "0" + rule["name"]
+            return "0" + tp["name"]
         elif tp == "REF":
-            return "1" + rule["name"]
+            return "1" + tp["name"]
         elif tp == "PLUS":
-            return "2" + rule["name"]
+            return "2" + tp["name"]
         elif tp == "RULE":
-            body = rule["body"]
+            body = tp["body"]
             return self.get_rule_ele_sign(body)
         elif tp == "LIST":
             return self.get_rule_list_sign(rule)
         elif tp == "VAR":
-            name = rule["name"]
+            name = tp["name"]
             return self.get_rule_ele_sign(self.ast[name])
 
     def get_rule_sign(self, ast):
         all_signs = []
         for nm, bd in ast.ast.items():
             if bd["tp"] == "EXPORT":
-                ele_sign = self.get_rule_ele_sign(bd["body"])
-                all_signs.append(ele_sign)
+                ele_names = []
+                for ele in bd["body"]:
+                    if ele["tp"] == "REF":
+                        ele_names.append( "1" + ele["name"] )
+                    else:
+                        ele_names.append( ele["name"] )
+                    
+            all_signs.append( "_".join(ele_names) )
         return all_signs
                 
 
@@ -90,7 +96,7 @@ class Parse():
     def basic_set(self, dialog):
         self.dialog = dialog
         self.AM = self.rule_graph.ac_machine.match(dialog)
-        self.plus_preprocess()
+        self.plus_preprocess(dialog, self.AM)
 
     def match(self, dialog):
         self.basic_set(dialog)
@@ -147,7 +153,7 @@ class Parse():
 
     def plus_preprocess(self):
         for ap_name in self.rule_graph.plus:
-            node = self.rule_graph.ast[ap_name]
+            node = self.ast[ap_name]
             tp = node["body"]["tp"]
             if tp == "ATOM":
                 self.atom_plus_preprocess(node, "keyword")
@@ -164,7 +170,7 @@ class Parse():
 
         ap_name, ap_tag = node["name"], node["body"]["name"]
         if ap_tag not in tag_index or len(tag_index[ap_tag]) <= 1:
-            return None
+            continue
 
         ids_of_tag = tag_index[ap_tag]
         # 找到所有的atom plus
@@ -187,18 +193,19 @@ class Parse():
                 beg_tag_idx = i
 
     def var_plus_preprocess(self, node):
-        while True:
-            mm = self.S_match_plus(node)
-            if not mm: break
-            self.AM.matched.append(mm )
+        ans = []
+        mm = self.S_match_plus(node)
+        if mm:
+            ans.extend(mm)
+        self.AM.matched_keyword.append( (ss_index, se_index, ap_name, "2") )
 
 
     def S_match_atom(self, rule):
         while True:
-            mc = self.AM.get_typeed_next("0")
+            mc = self.AM.get_next_keyword()
             if not mc: break
             dist = self.AM.get_word_dist(mc[0])
-            if dist > self.rule_graph.config.VAR_PLUS_MAX_DIST: break
+            if dist > CONF.maxdist: break
             if rule["name"] in mc[2]:
                 self.AM.accept(mc)
                 return (mc, dist)
@@ -210,10 +217,10 @@ class Parse():
     def S_match_ref(self, rule):
         candi = []
         while True:
-            mc = self.AM.get_typeed_next("1")
+            mc = self.AM.get_next_slot()
             if not mc: break
             dist = self.AM.get_word_dist(mc[0])
-            if dist > self.rule_graph.config.VAR_PLUS_MAX_DIST: break
+            if dist > CONF.maxdist: break
             if mc[2] == e["name"]:
                 candi.append(mc)
 
@@ -224,10 +231,10 @@ class Parse():
         p_rule = rule["body"]
         while True:
             _m, _d = self.S_match(p_rule)
-            if _m and _d < self.rule_graph.config.VAR_PLUS_MAX_DIST: ans.append(_m)
+            if _m: ans.append(_m)
             else: break
 
-        return self.merge_ele(ans, tag)
+        return ans
 
     def S_match(self, rule):
         tp = rule["tp"]
@@ -244,8 +251,7 @@ class Parse():
 
         return _m, _d
 
-    def merge_ele(self, lst, tag):
-        if not lst: return None
+    def merge_ele(self, lst ):
         return (lst[0][0], lst[-1][1], tag, "2")
 
     def S_match_one_rule(self, ori_rule):

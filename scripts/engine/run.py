@@ -46,10 +46,10 @@ def run(lex_file, input_str, dict_dir):
         all_slot_entity_files = glob.glob(dict_dir + "/*.txt")
     keywords = ast.extract_all_atoms(ast_tree)
     ac_machine = build_ac.AC()
-    ac_machine.init(keywords, all_slot_entity_files)
+    ac_machine.make(keywords, all_slot_entity_files)
 
     _config = config.config()
-    rule_graph = parse.Rule_structure(ast, ac_machine, _config)
+    rule_graph = parse.Rule_structure(ast_tree, ac_machine, _config)
     parser = parse.Parse(rule_graph)
     ans = parser.match(input_str)
     print(ans)
