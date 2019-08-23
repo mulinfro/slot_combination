@@ -1,6 +1,4 @@
 
-
-
 class Rule_structure():
 
     def __init__(self, ast, ac_machine, config):
@@ -9,17 +7,6 @@ class Rule_structure():
         self.rule_fingerprint = self.build_tp_prefixes(ast)
         self.ac_machine = ac_machine
         self.config = config
-
-    """
-    def build_atom_plus(self, ast):
-        ans = []
-        for nm in ast.atom_plus:
-            atom_plus_body = ast.ast[nm]["val"]
-            tag = atom_plus_body["val"]
-            ans.append( (nm, tag))
-        return ans
-
-    """
 
     def get_one_rule_sign(self, rule):
         tp = rule["tp"]
@@ -58,7 +45,10 @@ class Rule_structure():
         for nm, bd in ast.ast.items():
             if bd["tp"] == "EXPORT":
                 ele_sign = self.get_rule_ele_sign(bd["body"])
-                all_signs.append(ele_sign)
+                all_signs.append("_" + ele_sign)
+
+        print("ALL_SIGNS")
+        print(all_signs)
         return all_signs
                 
 
@@ -97,16 +87,17 @@ class Parse():
 
         all_matched = []
         while True:
-            ele = ac_matched_ans.iter_init_status()
+            ele = self.AM.iter_init_status()
             if ele is None: break
-            tp = "%s_%s%s"%(tp, tag_type[-1], ele_tp)
-            if tp in self.rule_fingerprint:
-                head_ele = ((ele[0], ele[1]), )
-                matched_ans = self.max_match(tp, head_ele)
-                if best_ans:
-                    all_matched.extend( matched_ans)
-                elif self.rule_fingerprint[tp]:
-                    all_matched.append( (tp, head_ele ))
+            for ele_tp in ele[2]:
+                tp = "%s_%s%s"%("", ele[-1], ele_tp)
+                if tp in self.rule_graph.rule_fingerprint:
+                    head_ele = ((ele[0], ele[1]), )
+                    matched_ans = self.max_match(tp, head_ele)
+                    if best_ans:
+                        all_matched.extend( matched_ans)
+                    elif self.rule_fingerprint[tp]:
+                        all_matched.append( (tp, head_ele ))
 
         return self.select(all_matched)
 
@@ -227,7 +218,7 @@ class Parse():
             if _m and _d < self.rule_graph.config.VAR_PLUS_MAX_DIST: ans.append(_m)
             else: break
 
-        return self.merge_ele(ans, tag)
+        return self.merge_ele(ans, rule["name"])
 
     def S_match(self, rule):
         tp = rule["tp"]
@@ -240,7 +231,7 @@ class Parse():
         elif tp == "PLUS":
             _m, _d = self.S_match_plus(rule)
         elif tp == "RULE":
-            _m, _d = slef.S_match_one_rule(rule)
+            _m, _d = self.S_match_one_rule(rule)
 
         return _m, _d
 
@@ -255,10 +246,12 @@ class Parse():
         if tp == "LIST":
             ans = []
             for e in rule["body"]:
-                _m, _d = self.S_match()
-                total_dis += _d
-                if _m: ans.append(_m)
-                else: return []
+                _m, _d = self.S_match(e)
+                if _m:
+                    ans.append(_m)
+                    total_dis += _d
+                else:
+                    return [], 0
             return ans, total_dis
         elif tp == "OR":
             pass

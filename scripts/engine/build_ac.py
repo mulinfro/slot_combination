@@ -33,7 +33,9 @@ class AC_matched():
         while self._i < len(self.matched):
             km = self.matched[self._i]
             if km[0] <= self.accept_endidx or km[3] != tp:
-                self.keyword_i += 1
+                self._i += 1
+            else:
+                break
         if self._i < len(self.matched):
             self._i += 1
             return self.matched[self._i - 1]
