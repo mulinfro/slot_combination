@@ -14,7 +14,11 @@ plus suffix = {后缀运算符}
 rule unary = [{prefix}, {num}, {suffix}]
 
 rule bin_part = [{二元运算符}, {unary}]
+rule bin_part2 = [{二元运算符}, {num}]
+
 plus bin = {bin_part}
+plus bin2 = {bin_part2}
 
 export expr0 = [ {unary}]
 export expr1 = [ {unary}, {bin} ]
+export expr2 = [ {num}, {bin2} ]
