@@ -3,10 +3,14 @@
 
 class Rule_structure():
 
-    def __init__(self, ast):
+    def __init__(self, ast, ac_machine, config):
+        self.ast = ast.ast
+        self.plus = ast.plus
         self.rule_fingerprint = self.build_tp_prefixes(ast)
-        self.atom_plus = self.build_atom_plus(ast)
+        self.ac_machine = ac_machine
+        self.config = config
 
+    """
     def build_atom_plus(self, ast):
         ans = []
         for nm in ast.atom_plus:
@@ -14,6 +18,8 @@ class Rule_structure():
             tag = atom_plus_body["val"]
             ans.append( (nm, tag))
         return ans
+
+    """
 
     def get_one_rule_sign(self, rule):
         tp = rule["tp"]
@@ -78,10 +84,8 @@ class Rule_structure():
 
 class Parse():
 
-    def __init__(self, rule_graph, ac_machine, config):
+    def __init__(self, rule_graph):
         self.rule_graph = rule_graph
-        self.ac_machine = ac_machine
-        self.config = config
 
     def score(self, matched):
         pass
@@ -89,9 +93,14 @@ class Parse():
     def select(self, matched):
         pass
 
+    def basic_set(self, dialog):
+        self.dialog = dialog
+        self.AM = self.rule_graph.ac_machine.match(dialog)
+        self.plus_preprocess(dialog, self.AM)
+
     def match(self, dialog):
-        ac_matched_ans = self.ac_machine.match(dialog)
-        self.plus_preprocess(dialog, ac_matched_ans)
+        self.basic_set(dialog)
+
         all_matched = []
         while True:
             ele = ac_matched_ans.iter_init_status()
@@ -99,7 +108,7 @@ class Parse():
             tp = "%s_%s%s"%(tp, tag_type[-1], ele_tp)
             if tp in self.rule_fingerprint:
                 head_ele = ((ele[0], ele[1]), )
-                matched_ans = self.max_match(tp, head_ele, ac_matched_ans)
+                matched_ans = self.max_match(tp, head_ele)
                 if best_ans:
                     all_matched.extend( matched_ans)
                 elif self.rule_fingerprint[tp]:
@@ -109,15 +118,15 @@ class Parse():
 
 
     # 对规则的最长匹配
-    def max_match(self, tp, matched_eles, AM):
+    def max_match(self, tp, matched_eles):
         best_ans = []
-        stack = [(tp, AM.save_state(), matched_eles)]
+        stack = [(tp, self.AM.save_state(), matched_eles)]
         while len(stack):
             tp, state, matched_eles = stack.pop(0)
-            AM.restore_state(state)
+            self.AM.restore_state(state)
             is_accept = False
             while not is_accept:
-                tag_type, ele = AM.get_next()
+                tag_type, ele = self.AM.get_next()
                 #if self.get_word_dist(ele[0]) > self.conf.max_match_dist:
                 #    break
                 if tag_type is None: break
@@ -125,41 +134,41 @@ class Parse():
                 for ele_tp in ele[3]:
                     new_tp = "%s_%s%s"%(tp, tag_type, ele_tp)
                     if new_tp in self.rule_fingerprint:
-                        AM.accept(ele)
+                        self.AM.accept(ele)
                         is_accept = True
                         new_matched_eles = matched_eles + ((ele[0], ele[1]) , )
                         if self.rule_fingerprint[new_tp]:
                             best_ans.append( (new_tp,  new_matched_eles) )
-                        stack.append((new_tp, AM.save_state(), new_matched_eles ) )
+                        stack.append((new_tp, self.AM.save_state(), new_matched_eles ) )
 
         return best_ans
 
 
     # 递归实现
-    def max_match_rec(self, tp, matched_eles, AM):
+    def max_match_rec(self, tp, matched_eles):
         pass
 
     def search_match(self, dialog):
         pass
 
-    def plus_preprocess(self, AM):
+    def plus_preprocess(self):
         for ap_name in self.rule_graph.plus:
             node = self.ast[ap_name]
             tp = node["body"]["tp"]
             if tp == "ATOM":
-                self.atom_plus_preprocess(node, AM, "keyword")
+                self.atom_plus_preprocess(node, "keyword")
             elif  tp == "REF":
-                self.ref_plus_preprocess(node, AM, "slot")
+                self.atom_plus_preprocess(node, "slot")
             else:
-                self.var_plus_preprocess(node, AM)
+                self.var_plus_preprocess(node)
 
-        AM.matched.sort(key = lambda x: (x[0], -x[1]) )
+        self.AM.matched.sort(key = lambda x: (x[0], -x[1]) )
         
-    def atom_plus_preprocess(self, node, AM, tp = "keyword"):
+    def atom_plus_preprocess(self, node, tp = "keyword"):
         if tp == "keyword":
-            tag_index = AM.keyword_tag_index
+            tag_index = self.AM.keyword_tag_index
         else:
-            tag_index = AM.slot_tag_index
+            tag_index = self.AM.slot_tag_index
         ap_name, ap_tag = node["name"], node["body"]["name"]
         if ap_tag not in tag_index or len(tag_index[ap_tag]) <= 1:
             continue
@@ -171,25 +180,25 @@ class Parse():
             start, end, key = ids_of_tag[i]
             pre_end= ids_of_tag[pre_tag_idx][1] + 1
             if start < pre_end:
-                continue
+                pass
             elif start == pre_end:
                 pre_tag_idx = i
-                continue
+            else:
 
-            if i - beg_tag_idx > 1:
-                ss_index, _, _ = ids_of_tag[beg_tag_idx]
-                _, se_index, _ = ids_of_tag[pre_tag_idx]
-                AM.matched.append( (ss_index, se_index, ap_name, "2") )
+                if i - beg_tag_idx > 1:
+                    ss_index, _, _ = ids_of_tag[beg_tag_idx]
+                    _, se_index, _ = ids_of_tag[pre_tag_idx]
+                    self.AM.matched.append( (ss_index, se_index, ap_name, "2") )
 
-            pre_tag_idx = i
-            beg_tag_idx = i
+                pre_tag_idx = i
+                beg_tag_idx = i
 
-    def var_plus_preprocess(self, node, AM):
+    def var_plus_preprocess(self, node):
         ans = []
-        mm = self.match_plus(AM, rule_name)
+        mm = self.S_match_plus(node)
         if mm:
             ans.extend(mm)
-        AM.matched_keyword.append( (ss_index, se_index, ap_name, "2") )
+        self.AM.matched_keyword.append( (ss_index, se_index, ap_name, "2") )
 
 
     def S_match_atom(self, rule):
@@ -199,7 +208,7 @@ class Parse():
             dist = self.AM.get_word_dist(mc[0])
             if dist > CONF.maxdist: break
             if rule["name"] in mc[2]:
-                AM.accept(mc)
+                self.AM.accept(mc)
                 return (mc, dist)
 
         return (None, None)
@@ -220,7 +229,7 @@ class Parse():
 
     def S_match_plus(self, rule):
         ans = []
-        p_rule = self.rule_graph.ast[rule["body"]]
+        p_rule = rule["body"]
         while True:
             _m, _d = S_match(p_rule)
             if _m: ans.append(_m)
@@ -235,7 +244,7 @@ class Parse():
         elif tp == "REF":
             _m, _d = self.S_match_ref(rule)
         elif tp == "VAR":
-            _m, _d = self.S_match( self.rule_graph.ast[rule["body"]] )
+            _m, _d = self.S_match( self.rule_graph.ast.ast[rule["body"]] )
         elif tp == "PLUS":
             _m, _d = self.S_match_plus(rule)
         elif tp == "RULE":
@@ -261,4 +270,6 @@ class Parse():
             pass
         else:
             _m = None
+
+        return (None, None)
 

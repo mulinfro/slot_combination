@@ -48,7 +48,8 @@ def run(lex_file, input_str, dict_dir):
     ac_machine = build_ac.AC()
     ac_machine.init(keywords, all_slot_entity_files)
 
-    rule_graph = parse.Rule_structure(ast)
+    _config = config.config()
+    rule_graph = parse.Rule_structure(ast, ac_machine, _config)
     parser = parse.Parse(rule_graph)
     ans = parser.match(input_str)
     print(ans)

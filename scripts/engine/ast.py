@@ -164,7 +164,7 @@ class AST():
             return {"tp":"REF", "name": name}
         else:
             if name not in self.ast: Error("Undefined %s"%name)
-            return self.ast[name]
+            return {"tp":"VAR", "name": name} #self.ast[name]
 
     def ast_rule_body(self, stm):
         tkn = stm.next()
