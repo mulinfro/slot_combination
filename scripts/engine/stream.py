@@ -8,6 +8,9 @@ class stream():
     def lookahead(self):
         return self._stream[self.pos - 1]
 
+    def lookahead(self, n):
+        return self._stream[self.pos - n]
+
     def peek(self):
         if self.eof():  self.crack("EOL while scanning string literal")
         return self._stream[self.pos]

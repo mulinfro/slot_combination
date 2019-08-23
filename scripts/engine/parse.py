@@ -142,54 +142,54 @@ class Parse():
     def search_match(self, dialog):
         pass
 
-    def plus_preprocess(self, dialog, AM):
+    def plus_preprocess(self, AM):
         for ap_name in self.rule_graph.plus:
             node = self.ast[ap_name]
             tp = node["body"]["tp"]
             if tp == "ATOM":
-                self.atom_plus_preprocess(dialog, AM, "keyword")
+                self.atom_plus_preprocess(node, AM, "keyword")
             elif  tp == "REF":
-                self.ref_plus_preprocess(dialog, AM, "slot")
+                self.ref_plus_preprocess(node, AM, "slot")
             else:
-                self.var_plus_preprocess(dialog, AM)
+                self.var_plus_preprocess(node, AM)
 
         AM.matched.sort(key = lambda x: (x[0], -x[1]) )
         
-    def atom_plus_preprocess(self, dialog, AM, tp = "keyword"):
+    def atom_plus_preprocess(self, node, AM, tp = "keyword"):
         if tp == "keyword":
             tag_index = AM.keyword_tag_index
         else:
             tag_index = AM.slot_tag_index
-        for ap_name, ap_tag in self.rule_graph.atom_plus:
-            if ap_tag not in tag_index or len(tag_index[ap_tag]) <= 1:
+        ap_name, ap_tag = node["name"], node["body"]["name"]
+        if ap_tag not in tag_index or len(tag_index[ap_tag]) <= 1:
+            continue
+
+        ids_of_tag = tag_index[ap_tag]
+        # 找到所有的atom plus
+        pre_tag_idx = beg_tag_idx = 0
+        for i in range(1, len(tag_index[ap_tag])):
+            start, end, key = ids_of_tag[i]
+            pre_end= ids_of_tag[pre_tag_idx][1] + 1
+            if start < pre_end:
+                continue
+            elif start == pre_end:
+                pre_tag_idx = i
                 continue
 
-            ids_of_tag = tag_index[ap_tag]
-            # 找到所有的atom plus
-            pre_tag_idx = beg_tag_idx = 0
-            for i in range(1, len(tag_index[ap_tag])):
-                start, end, key = ids_of_tag[i]
-                pre_end= ids_of_tag[pre_tag_idx][1] + 1
-                if start < pre_end:
-                    continue
-                elif start == pre_end:
-                    pre_tag_idx = i
-                    continue
+            if i - beg_tag_idx > 1:
+                ss_index, _, _ = ids_of_tag[beg_tag_idx]
+                _, se_index, _ = ids_of_tag[pre_tag_idx]
+                AM.matched.append( (ss_index, se_index, ap_name, "2") )
 
-                if i - beg_tag_idx > 1:
-                    ss_index, _, _ = ids_of_tag[beg_tag_idx]
-                    _, se_index, _ = ids_of_tag[pre_tag_idx]
-                    AM.matched.append( (ss_index, se_index, dialog[ss_index: se_index+1],ap_name, "RULE") )
+            pre_tag_idx = i
+            beg_tag_idx = i
 
-                pre_tag_idx = i
-                beg_tag_idx = i
-
-    def var_plus_preprocess(self, dialog, AM, rule_name):
+    def var_plus_preprocess(self, node, AM):
         ans = []
         mm = self.match_plus(AM, rule_name)
         if mm:
             ans.extend(mm)
-        AM.matched_keyword.append( (ss_index, se_index, dialog[ss_index: se_index+1],ap_name) )
+        AM.matched_keyword.append( (ss_index, se_index, ap_name, "2") )
 
 
     def S_match_atom(self, rule):
@@ -198,7 +198,7 @@ class Parse():
             if not mc: break
             dist = self.AM.get_word_dist(mc[0])
             if dist > CONF.maxdist: break
-            if rule["name"] in mc[3]:
+            if rule["name"] in mc[2]:
                 AM.accept(mc)
                 return (mc, dist)
 
@@ -213,7 +213,7 @@ class Parse():
             if not mc: break
             dist = self.AM.get_word_dist(mc[0])
             if dist > CONF.maxdist: break
-            if mc[3] == e["name"]:
+            if mc[2] == e["name"]:
                 candi.append(mc)
 
         return select_max_length(candi)

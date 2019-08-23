@@ -17,11 +17,11 @@ def ast_same_type_seq(stm, is_valid):
         tps.append(stm.next().val)
     return tps
 
-def is_rule_end(stm):
+def is_rule_end(stm, eat=False):
     if stm.eof(): return True
     tkn = stm.peek()
     if tkn.tp == "SEP" and tkn.val in ["SEMI", "NEWLINE" ]:
-        stm.next()
+        if eat: stm.next()
         return True
     return False
 
@@ -87,13 +87,14 @@ class AST():
                 Error("Unexpeted begining token %s"%tkn.val)
             if val["name"] in self.ast:
                 Error("conflict rule names: " + val["name"])
+
             self.ast[val["name"]] = val
 
     def ast_export(self, stm):
         stm.next()
         rule = self.ast_rule_helper(stm)
         post_processer = self.ast_post_process(stm)
-        syntax_cond_assert(is_rule_end(stm), "expected rule end")
+        syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
 
         return {"tp": "EXPORT", "name": rule["rule_name"], "body": rule["body"], 
                     "post":post_processer}
@@ -102,7 +103,7 @@ class AST():
         stm.next()
         rule = self.ast_rule_helper(stm)
         post_func = self.ast_post_process(stm)
-        syntax_cond_assert(is_rule_end(stm), "expected rule end")
+        syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
         return {"tp": "RULE", "name":rule["rule_name"], "body": rule["body"], "post_func": post_func }
 
     def ast_atom(self, stm):
@@ -111,14 +112,17 @@ class AST():
         rule_name = stm.next().val
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
         body = self.ast_atom_body(stm)
-        self.ast_same_type_seq(stm, lambda tkn: syntax_check(tkn, ("SEP","SEMI")))
+        syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
+        #ast_same_type_seq(stm, lambda tkn: syntax_check(tkn, ("SEP","SEMI")))
         return {"tp": "ATOM", "name": rule_name, "body": body }
 
     def ast_plus(self, stm):
         stm.next()
         rule_name = stm.next().val
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
-        var = self.ast_dict_ele(stm)
+        tkn = stm.next()
+        syntax_assert(tkn, "DICT", "%s need { here"%rule_name)
+        var = self.ast_dict_ele(stream(tkn.val))
         return {"tp": "PLUS", "name":rule_name, "body": var }
         
     def ast_rule_helper(self, stm):
@@ -131,7 +135,9 @@ class AST():
     def ast_list_helper(self, stm):
         body = []
         while True:
-            ele = self.ast_dict_ele(stm)
+            tkn = stm.next()
+            syntax_assert(tkn, "DICT", "%s need { here"%tkn.val)
+            ele = self.ast_dict_ele(stream(tkn.val))
             body.append(ele)
             if not stm.eof():
                 syntax_check(stm.next(), ("SEP", "COMMA"))
@@ -180,13 +186,13 @@ class AST():
                 elif is_candi_op(tkn, "?"):
                     continue
                 elif is_candi_op(tkn, "|"):
-                    if stm.lookahead().val == "?": sub_eles.append("")
+                    if stm.lookahead(2).val == "?": sub_eles.append("")
                     break
                 else:
                     stm.back()
                     syntax_assert(tkn, "SEP")
                     break
-            eles.extend(get_cross_ele(sub_eles, [], 0) )
+            eles.extend(get_cross_ele(sub_eles, [""], 0) )
             if is_rule_end(stm): break
 
         return eles

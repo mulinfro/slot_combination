@@ -36,17 +36,20 @@ def run(lex_file, input_str, dict_dir):
 
     print(ast_tree.atom)
     print(ast_tree.plus)
+    """
     for k,m in ast_tree.ast.items():
         print(k, m)
+    """
 
-    return 0
-    all_slot_entity_files = glob.glob(dict_dir + "/*.txt")
+    all_slot_entity_files = []
+    if dict_dir:
+        all_slot_entity_files = glob.glob(dict_dir + "/*.txt")
     keywords = ast.extract_all_atoms(ast_tree)
     ac_machine = build_ac.AC()
     ac_machine.init(keywords, all_slot_entity_files)
 
-    rule_graph = Rule_structure(ast, ac_machine)
-    parser = Parse(rule_graph)
+    rule_graph = parse.Rule_structure(ast)
+    parser = parse.Parse(rule_graph)
     ans = parser.match(input_str)
     print(ans)
 
