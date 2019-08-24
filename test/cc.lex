@@ -11,14 +11,13 @@ atom 后缀运算符 = 倒数|绝对值|相反数|平方|立方|平方根|立方
 plus prefix = {前缀运算符}
 plus suffix = {后缀运算符}
 
-rule unary = [{prefix}, {num}, {suffix}]
+rule unary = [{prefix}?, {num}, {suffix}?]
 
 rule bin_part = [{二元运算符}, {unary}]
-rule bin_part2 = [{二元运算符}, {num}]
 
-plus bin = {bin_part}
-plus bin2 = {bin_part2}
+plus bin = [{二元运算符}, {unary}]
 
 export expr0 = [ {unary}]
-export expr1 = [ {unary}, {bin} ]
-export expr2 = [ {num}, {bin2} ]
+export expr1 = [ {unary}, {bin} ] => { @G1, @G2="www", intent=$1, slot=join($2, $3, 0)  }
+export expr2 = [ {num}, {bin} ]
+export expr3 = [ {dig}, {bin} ]

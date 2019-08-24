@@ -9,9 +9,21 @@ class token():
         self.line = line
         self.col  = col
 
+    def get(self):
+        return (self.tp, self.val)
+
+    def __eq__(self, e):
+        return self.get() == e
+
     def __repr__(self):
         return ("type:%s; val %s; line %d col %d") %(self.tp, self.val, self.line, self.col)
 
+
+def num(s):
+    try:
+        return int(s)
+    except ValueError:
+        return float(s)
 
 class token_list():
     def __init__(self, chars):
@@ -37,7 +49,7 @@ class token_list():
         elif ch == '[': tkn = self.read_list_f()
         elif ch == '{': tkn = self.read_hashmap()
         elif ch == '(': tkn = self.read_parn()
-        #elif str.isdigit(ch): tkn = self.read_num()
+        elif str.isdigit(ch): tkn = self.read_num()
         elif ch in op_alp: tkn = self.read_op()
         elif ch in ',\n;':     tkn = self.read_sep()
         else: tkn = self.read_var()
@@ -119,13 +131,6 @@ class token_list():
                 op = op[0:-1]
                 break
         return token("OP", op_info[op], line, col)
-
-
-    def num(s):
-        try:
-            return int(s)
-        except ValueError:
-            return float(s)
 
     def read_num(self):
         line, col = self.chars.line, self.chars.col

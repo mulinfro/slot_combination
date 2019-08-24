@@ -6,7 +6,7 @@ ipath=/root/slot_combination
 if [ $# -ge 1 ] ; then
     sss=${1}
 else
-    sss="一加一乘以二三减去根号三五三五"
+    sss="一加一一乘以二三减去根号三五三五"
 fi
 
 

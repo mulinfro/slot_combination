@@ -7,16 +7,18 @@ keywords = {
      "rule":   "RULE",
      "plus":   "PLUS",
      # default modes
-     "_ANY":    "ANY",  # .*
-     "_SPACE":  "SPACE",
+     "_ANY":    "_ANY",  # .*
+     "_SPACE":  "_SPACE",
+     "_EMPTY":  "_EMPTY",
 }
-op_alp = '|^$?+*=>.:'
+op_alp = '|^$?+*=>.:@'
 
 op_info = {
 "^": "^",
 ".": ".",
 "$": "$",
 "?": "?",
+"@": "@",
 "+": "+",
 "*": "*",
 "|": "|",
@@ -36,6 +38,7 @@ op_type = {
 "=": "ASSIGN",
 "=>": "P0",
 "::": "P0",
+"@": "P0",
 }
 
 op_funcs = {

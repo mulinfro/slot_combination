@@ -35,8 +35,8 @@ rule m2 = [{atom}, {m1} ]
 # plus atom 字典 or 变量
 plus b1_p = {b1}
 
-# export一定是个list
-export r1 = [{b1 :: W(2,5)} , {m1} ]  => { intent=$1  }
+# export一定是个list, @代表配置
+export r1 = [{b1 :: W(2,5)} , {m1} ]  => { intent=$1, @G1 = 3, @G2 }
 
 ## 
 key_word_list
@@ -49,3 +49,12 @@ word_set
 ## 
 三种模式:严格; 不大于距离;  中间没有其他有效keyword; 一次算不算
 只在export支持 | ;
+
+atom | 拼接？
+删除export不存在的tag
+
+先动态规划 去掉覆盖的问题再贪心匹配
+search
+
+检查名称是否冲突  atom  ref
+

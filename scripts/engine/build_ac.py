@@ -15,6 +15,18 @@ class AC_matched():
         self._i = state[0]
         self.accept_endidx = state[1]
 
+    def reset(self):
+        self._i = 0
+        self.init_i = 0
+        self.accept_endidx = -1
+
+    def iter_end(self):
+        return self.init_i >= len(self.matched)
+
+    def has_next(self):
+        self.skip_unaccept()
+        return self._i < len(self.matched)
+
     def iter_init_status(self):
         if self.init_i < len(self.matched):
             self.init_i += 1
@@ -23,29 +35,29 @@ class AC_matched():
             self.accept(keyword)
             return keyword
 
-    def get_cur(self):
+    def skip_unaccept(self):
         while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
             self._i += 1
+
+    def get_cur(self):
+        self.skip_unaccept()
         if self._i < len(self.matched):
             return self.matched[self._i - 1]
         
     def get_typeed_next(self, tp):
-        while self._i < len(self.matched):
-            km = self.matched[self._i]
-            if km[0] <= self.accept_endidx or km[3] != tp:
-                self._i += 1
-            else:
-                break
+        self.skip_unaccept()
+        while self._i < len(self.matched) and self.matched[self._i][3] != tp:
+            self._i += 1
+
         if self._i < len(self.matched):
             self._i += 1
             return self.matched[self._i - 1]
 
     def get_next(self):
-        while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
-            self._i += 1
-        if self._i < len(self.matched):
-            self._i += 1
-            return self.matched[self._i - 1]
+        self.skip_unaccept()
+        #if self._i < len(self.matched):
+        self._i += 1
+        return self.matched[self._i - 1]
 
     def accept(self, ele):
         self.accept_endidx = ele[1]

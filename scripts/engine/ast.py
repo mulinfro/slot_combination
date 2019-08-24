@@ -93,18 +93,18 @@ class AST():
     def ast_export(self, stm):
         stm.next()
         rule = self.ast_rule_helper(stm)
-        post_processer = self.ast_post_process(stm)
+        post_info = self.ast_post(stm)
         syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
 
         return {"tp": "EXPORT", "name": rule["rule_name"], "body": rule["body"], 
-                    "post":post_processer}
+                    "post_info":post_info}
 
     def ast_rule(self, stm):
         stm.next()
         rule = self.ast_rule_helper(stm)
-        post_func = self.ast_post_process(stm)
+        post_info = self.ast_post(stm)
         syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
-        return {"tp": "RULE", "name":rule["rule_name"], "body": rule["body"], "post_func": post_func }
+        return {"tp": "RULE", "name":rule["rule_name"], "body": rule["body"], "post_info": post_info }
 
     def ast_atom(self, stm):
         stm.next()
@@ -120,10 +120,8 @@ class AST():
         stm.next()
         rule_name = stm.next().val
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
-        tkn = stm.next()
-        syntax_assert(tkn, "DICT", "%s need { here"%rule_name)
-        var = self.ast_dict_ele(stream(tkn.val))
-        return {"tp": "PLUS", "name":rule_name, "body": var }
+        body = self.ast_rule_body(stm)
+        return {"tp": "PLUS", "name":rule_name, "body": body }
         
     def ast_rule_helper(self, stm):
         syntax_assert(stm.peek(), "STR", stm.peek().tp)
@@ -134,10 +132,9 @@ class AST():
 
     def ast_list_helper(self, stm):
         body = []
-        while True:
-            tkn = stm.next()
-            syntax_assert(tkn, "DICT", "%s need { here"%tkn.val)
-            ele = self.ast_dict_ele(stream(tkn.val))
+        while not stm.eof():
+            syntax_assert(stm.peek(), "DICT", "need { here")
+            ele = self.ast_try_or_ele(stm)
             body.append(ele)
             if not stm.eof():
                 syntax_check(stm.next(), ("SEP", "COMMA"))
@@ -166,12 +163,32 @@ class AST():
             if name not in self.ast: Error("Undefined %s"%name)
             return {"tp":"VAR", "name": name} #self.ast[name]
 
+    def ast_try_or_ele(self, stm):
+        eles = [self.ast_dict_ele(stream(stm.next().val)) ]
+        while not stm.eof():
+            tkn = stm.next()
+            if tkn == ("OP", "|"):
+                n_tkn = stm.next()
+                syntax_assert(n_tkn, "DICT", "expected dict")
+                eles.append(self.ast_dict_ele(stream(n_tkn.val)))
+            elif tkn == ("OP", "?"): 
+                return {"tp": "OR_?", "body": eles[0] }
+            else:
+                stm.back()
+                break
+                
+        if len(eles) > 1:
+            return {"tp": "OR", "body": eles }
+        else:
+            return eles[0]
+
     def ast_rule_body(self, stm):
-        tkn = stm.next()
-        if tkn.tp == "LIST":
+        tp = stm.peek().tp
+        if tp == "LIST":
+            tkn = stm.next()
             return self.ast_list_helper(stream(tkn.val))
-        elif tkn.tp == "DICT":
-            return self.ast_dict_ele(stream(tkn.val))
+        elif tp == "DICT":
+            return self.ast_try_or_ele(stm)
         else:
             Error("undefined rule body type")
 
@@ -186,7 +203,7 @@ class AST():
                 elif is_candi_op(tkn, "?"):
                     continue
                 elif is_candi_op(tkn, "|"):
-                    if stm.lookahead(2).val == "?": sub_eles.append("")
+                    if stm.lookahead(2) == ("OP", "?"): sub_eles.append("")
                     break
                 else:
                     stm.back()
@@ -197,9 +214,65 @@ class AST():
 
         return eles
 
-    def ast_post_process(self, stm):
-        while not is_rule_end(stm):
-            stm.next()
+    def ast_processer_para(self, stm):
+        tkn = stm.next()
+        if tkn.tp == "STRING":
+            return {"tp":"STRING", "val": tkn.val }
+        elif tkn.tp == "NUM":
+            return {"tp":"NUM", "val": tkn.val }
+        elif tkn == ("OP", "$"):
+            t = stm.next()
+            syntax_assert(t, "NUM", "expected num")
+            return {"tp":"VAR", "val": t.val }
+        else:
+            Error("processer error")
 
+    def ast_processer(self, stm):
+        if stm.peek().tp == "STR":
+            func = stm.next().val
+            if not stm.eof() and stm.peek().tp == "PARN":
+                p_stm = stream(stm.next().val)
+                paras = []
+                while not p_stm.eof():
+                    p = self.ast_processer_para(p_stm)
+                    paras.append(p)
+                    if not p_stm.eof():
+                        syntax_assert(p_stm.next(), ("SEP", "COMMA"), "")
+
+                return {"tp": "FUNC", "func": func, "paras": paras}
+            return {"tp": "FUNC", "func": func}
+        else:
+            return self.ast_processer_para(stm)
+
+    def ast_post(self, stm):
+        if not stm.eof() and stm.peek().val == "=>":
+            stm.next()
+            tkn = stm.next()
+            syntax_assert(tkn, "DICT", "")
+
+            nstm = stream(tkn.val)
+            config, processer = {}, {}
+            while not nstm.eof():
+                tkn = nstm.next()
+                if tkn == ("OP", "@"):
+                    key = nstm.next()
+                    syntax_assert(key, "STR", "")
+                    val = None
+                    if not nstm.eof() and nstm.peek() == ("OP", "="):
+                        nstm.next()
+                        val = self.ast_processer_para(nstm)["val"]
+                    config[key.val] = val
+                else:
+                    syntax_assert(tkn, "STR", "")
+                    syntax_assert(nstm.next(), ("OP", "="), "")
+                    val = self.ast_processer(nstm)
+                    config[key.val] = val
+
+                if not nstm.eof():
+                    syntax_assert(nstm.next(), ("SEP", "COMMA"), "")
+
+
+            return {}
+            
         return {}
 
