@@ -157,7 +157,8 @@ class AST():
             syntax_assert(stm.next(), ("OP", "::"), "expected ::")
 
         if is_ref:
-            self.word_refs.append(name)
+            if name not in self.word_refs:
+                self.word_refs.append(name)
             return {"tp":"REF", "name": name}
         else:
             if name not in self.ast: Error("Undefined %s"%name)

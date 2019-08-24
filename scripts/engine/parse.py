@@ -18,9 +18,19 @@ class Rule_structure():
         self.ast = ast.ast
         self.plus_fingerprint = self.get_plus_sign(ast.plus)
         rules_sign = self.get_sign(ast.ast)
-        self.rule_fingerprint = self.build_tp_prefixes(rules_sign)
+        self.rule_fingerprint, export_tags = self.build_tp_prefixes(rules_sign)
         self.ac_machine = ac_machine
         self.config = config
+        self.need_delete_tags = self.get_need_delete_tag(export_tags, ast.atom + ast.word_refs + ast.plus)
+        print("export_used_tag", self.need_delete_tags, )
+
+    def get_need_delete_tag(self, export_tags, all_tags):
+        ans = set()
+        for t in all_tags:
+            if t not in export_tags:
+                ans.add(t)
+
+        return ans
 
 
     def get_ele_sign(self, rule):
@@ -64,21 +74,22 @@ class Rule_structure():
         all_signs = {}
         for nm in plus:
             sign = self.get_ele_sign(self.ast[nm]["body"])
-            all_signs[nm] = self.build_tp_prefixes(sign)
+            all_signs[nm], _ = self.build_tp_prefixes(sign)
 
         return all_signs
 
     def build_tp_prefixes(self, rules):
-        ans = {}
+        ans, all_tags = {}, set()
         for r in rules:
             eles = r.strip("_").split("_")
             sub_ele = ""
             for ele in eles:
+                all_tags.add(ele.lstrip("012345"))
                 sub_ele += "_" + ele
                 if sub_ele not in ans:
                     ans[sub_ele] = 0
             ans[sub_ele] = 1
-        return ans
+        return ans, all_tags
 
 
 class Parse():
@@ -96,6 +107,17 @@ class Parse():
         self.dialog = dialog
         self.AM = self.rule_graph.ac_machine.match(dialog)
         self.plus_preprocess()
+        if self.rule_graph.need_delete_tags:
+            self.delete_tag()
+
+    def delete_tag(self):
+        new_AM = []
+        for (a,b,tag,c) in self.AM.matched:
+            new_tag = [ t for t in tag if t not in self.rule_graph.need_delete_tags]
+            if new_tag:
+                new_AM.append( (a,b,new_tag, c) )
+            
+        self.AM.matched = new_AM
 
     def max_match(self, dialog):
         self.basic_set(dialog)
