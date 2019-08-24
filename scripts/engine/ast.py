@@ -93,18 +93,24 @@ class AST():
     def ast_export(self, stm):
         stm.next()
         rule = self.ast_rule_helper(stm)
-        post_info = self.ast_post(stm)
+        config, processer = self.ast_post(stm)
         syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
 
-        return {"tp": "EXPORT", "name": rule["rule_name"], "body": rule["body"], 
-                    "post_info":post_info}
+        ans = {"tp": "EXPORT", "name": rule["rule_name"], "body": rule["body"] }
+        if config: ans["config"] = config
+        if processer: ans["processer"] = processer
+        return ans
 
     def ast_rule(self, stm):
         stm.next()
         rule = self.ast_rule_helper(stm)
-        post_info = self.ast_post(stm)
+        config, processer = self.ast_post(stm)
         syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
-        return {"tp": "RULE", "name":rule["rule_name"], "body": rule["body"], "post_info": post_info }
+
+        ans = {"tp": "RULE", "name":rule["rule_name"], "body": rule["body"]}
+        if config: ans["config"] = config
+        if processer: ans["processer"] = processer
+        return ans
 
     def ast_atom(self, stm):
         stm.next()
@@ -121,7 +127,11 @@ class AST():
         rule_name = stm.next().val
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
         body = self.ast_rule_body(stm)
-        return {"tp": "PLUS", "name":rule_name, "body": body }
+        config, processer = self.ast_post(stm)
+        ans = {"tp": "PLUS", "name":rule_name, "body": body }
+        if config: ans["config"] = config
+        if processer: ans["processer"] = processer
+        return ans
         
     def ast_rule_helper(self, stm):
         syntax_assert(stm.peek(), "STR", stm.peek().tp)
@@ -273,7 +283,7 @@ class AST():
                     syntax_assert(nstm.next(), ("SEP", "COMMA"), "")
 
 
-            return {}
+            return config, processer
             
-        return {}
+        return None, None
 

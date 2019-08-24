@@ -48,8 +48,8 @@ def run(lex_file, input_str, dict_dir):
     ac_machine = build_ac.AC()
     ac_machine.make(keywords, all_slot_entity_files)
 
-    _config = config.config()
-    rule_graph = parse.Rule_structure(ast_tree, ac_machine, _config)
+    #_config = config.config()
+    rule_graph = parse.Rule_structure(ast_tree, ac_machine)
     print("PLUS_FINGERPRINT", rule_graph.plus_fingerprint)
     parser = parse.Parse(rule_graph)
     ans = parser.max_match(input_str)

@@ -14,15 +14,14 @@ def get_list_product(lst_of_lst):
 
 class Rule_structure():
 
-    def __init__(self, ast, ac_machine, config):
+    def __init__(self, ast, ac_machine):
         self.ast = ast.ast
         self.plus_fingerprint = self.get_plus_sign(ast.plus)
         rules_sign = self.get_sign(ast.ast)
         self.rule_fingerprint, export_tags = self.build_tp_prefixes(rules_sign)
         self.ac_machine = ac_machine
-        self.config = config
         self.need_delete_tags = self.get_need_delete_tag(export_tags, ast.atom + ast.word_refs + ast.plus)
-        print("export_used_tag", self.need_delete_tags, )
+        print("DELETE_TAG", self.need_delete_tags, )
 
     def get_need_delete_tag(self, export_tags, all_tags):
         ans = set()
@@ -31,7 +30,6 @@ class Rule_structure():
                 ans.add(t)
 
         return ans
-
 
     def get_ele_sign(self, rule):
         tp = rule["tp"]
@@ -107,7 +105,7 @@ class Parse():
         self.dialog = dialog
         self.AM = self.rule_graph.ac_machine.match(dialog)
         self.plus_preprocess()
-        if self.rule_graph.need_delete_tags:
+        if len(self.rule_graph.need_delete_tags) > 0:
             self.delete_tag()
 
     def delete_tag(self):
@@ -124,7 +122,7 @@ class Parse():
         print(self.AM.matched)
 
         print("begining match ...")
-        ans = self._greed_match(self.rule_graph.rule_fingerprint)
+        ans = self._greed_match(self.rule_graph.rule_fingerprint, {})
         return ans
 
     def search_macth(self):
@@ -133,7 +131,7 @@ class Parse():
     def _double_greed_macth(self):
         pass
 
-    def _greed_match(self, fingerprint):
+    def _greed_match(self, fingerprint, conf):
         self.AM.reset()
         all_matched = []
         print(fingerprint)
@@ -145,7 +143,7 @@ class Parse():
                 if tp in fingerprint:
                     #print("GG2", tp)
                     head_ele = ((ele[0], ele[1]), )
-                    matched_ans = self._greed_match_helper(tp, head_ele, fingerprint)
+                    matched_ans = self._greed_match_helper(tp, head_ele, fingerprint, conf)
                     if matched_ans:
                         all_matched.extend(matched_ans)
                     elif fingerprint[tp]:
@@ -155,7 +153,7 @@ class Parse():
 
 
     # 对规则的最长匹配
-    def _greed_match_helper(self, tp, matched_eles, fingerprint):
+    def _greed_match_helper(self, tp, matched_eles, fingerprint, conf):
         best_ans = []
         stack = [(tp, self.AM.save_state(), matched_eles)]
         while len(stack):
@@ -194,12 +192,13 @@ class Parse():
         for ap_name in self.rule_graph.plus_fingerprint:
             node = self.rule_graph.ast[ap_name]
             bd = self.get_ast_body(node)
+            conf = node.get("config", {})
             if bd["tp"] == "ATOM":
                 self.atom_plus_preprocess(bd, [ap_name], "keyword")
             elif  bd["tp"] == "REF":
                 self.atom_plus_preprocess(bd, [ap_name], "slot")
             else:
-                self.var_plus_preprocess(ap_name)
+                self.var_plus_preprocess(ap_name, conf)
 
             self.AM.matched.sort(key = lambda x: (x[0], -x[1]) )
         
@@ -232,7 +231,7 @@ class Parse():
         if cnt > 1:
             self.AM.matched.append((ids_of_tag[beg_tag_idx][0], ids_of_tag[pre_tag_idx][1], tag, "2") )
 
-    def plus_extract(self, lst, tag):
+    def plus_extract(self, lst, tag, conf):
         ans = []
         p_i = b_i = 0
         cnt = 1
@@ -267,10 +266,10 @@ class Parse():
     def merge_ele(self, ele, b_idx, e_idx):
         return (ele[0], e_idx, ele[2] + b_idx - ele[1] -1 )
 
-    def var_plus_preprocess(self, rule_name):
+    def var_plus_preprocess(self, rule_name, conf):
         figerprint = self.rule_graph.plus_fingerprint[rule_name]
-        all_matched = self._greed_match(figerprint)
-        all_plus = self.plus_extract(self.merge_eles(all_matched), [rule_name])
+        all_matched = self._greed_match(figerprint, conf)
+        all_plus = self.plus_extract(self.merge_eles(all_matched), [rule_name], conf)
         print("ALL_PLUS", all_plus, all_matched, figerprint)
         self.AM.matched.extend(all_plus)
 
@@ -284,18 +283,6 @@ class Parse():
 
 
 ##########################################################
-
-    def S_match_seen_plus(self, rule):
-        while True:
-            mc = self.AM.get_typeed_next("2")
-            if not mc: break
-            dist = self.AM.get_word_dist(mc[0])
-            if dist > self.rule_graph.config.VAR_PLUS_MAX_DIST: break
-            if rule["name"] in mc[2]:
-                self.AM.accept(mc)
-                return (mc, dist)
-
-        return (None, None)
 
     def S_match_atom(self, rule):
         while True:
@@ -322,17 +309,3 @@ class Parse():
                 candi.append(mc)
 
         return select_max_length(candi)
-
-    def S_match(self, rule):
-        tp = rule["tp"]
-        if tp in [ "ATOM", "REF", "PLUS"]:
-            _m = [(tp, rule["name"]) ]
-        elif tp == "VAR":
-            _m = self.S_match(self.rule_graph.ast[rule["name"]] )
-        elif tp == "RULE":
-            _m = self.S_match(rule["body"])
-        elif tp == "LIST":
-            _m = [ self.S_match(ele) for ele in rule["body"] ]
-        else:
-            Error("rule %s"%str(rule))
-        return _m

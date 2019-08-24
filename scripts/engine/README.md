@@ -63,4 +63,8 @@ search
 半搜索， 存在冲突点  播放下
 
 
+分歧点
+ABC  [A "BC.."] [AB "C.."]
+ABC  ["A" BCD..] ["AB" CD..]
+ABC  [AB CD..] [A BCD..]
 
