@@ -222,7 +222,7 @@ class AST():
         elif tp == "DICT":
             return self.ast_try_or_ele(stm)
         else:
-            Error("undefined rule body type")
+            Error("undefined rule body type %s"%str(stm.peek()))
 
     def ast_atom_body(self, stm):
         eles = []

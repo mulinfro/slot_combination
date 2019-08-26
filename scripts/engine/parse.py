@@ -8,7 +8,7 @@ def get_list_product(lst_of_lst):
         for e in ans:
             for e2 in lst:
                 if e2 == "": new_ans.append(e)
-                else:     new_ans.append( ("%s_%s"%(e, e2)).strip("_") )
+                else:     new_ans.append( ("%s#%s"%(e, e2)).strip("#") )
         ans = new_ans
     return ans
 
@@ -23,7 +23,7 @@ class Rule_structure():
         self.rule_fingerprint, export_tags = self.build_tp_prefixes(rules_sign)
         self.ac_machine = ac_machine
         self.need_delete_tags = self.get_need_delete_tag(export_tags, ast.atom + ast.word_refs + ast.plus)
-        print("DELETE_TAG", self.need_delete_tags, )
+        #print("DELETE_TAG", export_tags, self.need_delete_tags, )
 
     def get_need_delete_tag(self, export_tags, all_tags):
         ans = set()
@@ -66,8 +66,8 @@ class Rule_structure():
                 ele_sign = self.get_ele_sign(bd["body"])
                 all_signs.extend(ele_sign)
 
-        print("ALL_SIGNS")
-        print(all_signs)
+        #print("ALL_SIGNS", len(all_signs))
+        #print(all_signs)
         return all_signs
                 
     def get_plus_sign(self, plus):
@@ -81,11 +81,11 @@ class Rule_structure():
     def build_tp_prefixes(self, rules):
         ans, all_tags = {}, set()
         for r in rules:
-            eles = r.strip("_").split("_")
+            eles = r.strip("#").split("#")
             sub_ele = ""
             for ele in eles:
                 all_tags.add(ele.lstrip("012345"))
-                sub_ele += "_" + ele
+                sub_ele += "#" + ele
                 if sub_ele not in ans:
                     ans[sub_ele] = 0
             ans[sub_ele] = 1
@@ -106,7 +106,7 @@ class Parse():
         return (matched_length, miss_length)
 
     def get_match_group(self, tp, _m, dialog):
-        eles = tp[1:].split("_")
+        eles = tp[1:].split("#")
         sv = self.score(_m)
         assert len(eles) == len(_m), "Need match"
         ans = []
@@ -114,25 +114,29 @@ class Parse():
             b_i, e_i = _m[i][0], _m[i][1] + 1
             ans.append( (dialog[b_i: e_i], eles[i]))
 
-        return (ans, sv[0], sv[1])
+        m_d = dialog[_m[0][0]: _m[-1][1]+1]
+
+        return (ans, m_d, sv[0], sv[1])
 
 
     def select(self, matched, dialog):
         mm = [ self.get_match_group(tp, _m, dialog) for tp, _m in matched]
-        mm.sort(key = lambda x: (-x[1], x[2]))
-        print(mm)
-        return mm[0]
+        mm.sort(key = lambda x: (-x[2], x[3]))
+        return mm[0] if mm else None
 
     def basic_set(self, dialog):
         self.dialog = dialog
         self.AM = self.rule_graph.ac_machine.match(dialog)
-        print("AM", self.AM.matched)
+        #print("AM 0", len(self.AM.matched))
         self.plus_preprocess()
+        #print("AM 1", len(self.AM.matched), self.AM.matched)
         if len(self.rule_graph.need_delete_tags) > 0:
             self.delete_tag()
+        #print("AM FINAL", self.AM.matched)
 
     def delete_tag(self):
         new_AM = []
+        #print("$ DELETE", self.rule_graph.need_delete_tags)
         for (a,b,tag,c) in self.AM.matched:
             new_tag = [ t for t in tag if t not in self.rule_graph.need_delete_tags]
             if new_tag:
@@ -142,7 +146,7 @@ class Parse():
 
     def max_match(self, dialog):
         self.basic_set(dialog)
-        print("begining match ...")
+        #print("begining match ...")
         matched_eles = self._greed_match(self.rule_graph.rule_fingerprint, {})
         return self.select(matched_eles, dialog)
 
@@ -155,14 +159,12 @@ class Parse():
     def _greed_match(self, fingerprint, conf):
         self.AM.reset()
         all_matched = []
-        print(fingerprint)
+        #print("fingerprint", len(fingerprint) ) 
         while not self.AM.iter_end():
             ele = self.AM.iter_init_status()
             for ele_tp in ele[2]:
-                tp = "%s_%s%s"%("", ele[-1], ele_tp)
-                #print("GG", tp, ele)
+                tp = "%s#%s%s"%("", ele[-1], ele_tp)
                 if tp in fingerprint:
-                    #print("GG2", tp)
                     head_ele = ((ele[0], ele[1]), )
                     matched_ans = self._greed_match_helper(tp, head_ele, fingerprint, conf)
                     if matched_ans:
@@ -187,7 +189,7 @@ class Parse():
                 #    break
 
                 for ele_tp in ele[2]:
-                    new_tp = "%s_%s%s"%(tp, ele[-1], ele_tp)
+                    new_tp = "%s#%s%s"%(tp, ele[-1], ele_tp)
                     if new_tp in fingerprint:
                         self.AM.accept(ele)
                         is_accept = True
@@ -271,13 +273,13 @@ class Parse():
                 p_i = i
                 cnt += 1
             elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ):
-                if cnt > conf["min_N"]:
+                if cnt >= conf["min_N"]:
                     ans.append( (lst[b_i][0], lst[p_i][1], tag, "2")  )
 
                 p_i = b_i =  i
                 cnt = 1
 
-        if cnt > conf["min_N"]:
+        if len(lst) and cnt >= conf["min_N"]:
             ans.append( (lst[b_i][0], lst[p_i][1], tag, "2")  )
 
         return ans
@@ -299,8 +301,10 @@ class Parse():
         figerprint = self.rule_graph.plus_fingerprint[rule_name]
         all_matched = self._greed_match(figerprint, conf)
         all_plus = self.plus_extract(self.merge_eles(all_matched), [rule_name], conf)
-        print("ALL_PLUS", all_plus, all_matched, figerprint)
+        #print("ALL_PLUS", rule_name,  all_plus, all_matched)
+        #print("LLL###0",  len(self.AM.matched))
         self.AM.matched.extend(all_plus)
+        #print("LLL###1",  len(self.AM.matched))
 
     def get_ast_body(self, node):
         bd = node["body"]
@@ -311,18 +315,6 @@ class Parse():
 
 
 ##########################################################
-
-    def S_match_atom(self, rule):
-        while True:
-            mc = self.AM.get_typeed_next("0")
-            if not mc: break
-            dist = self.AM.get_word_dist(mc[0])
-            if dist > self.rule_graph.config.VAR_PLUS_MAX_DIST: break
-            if rule["name"] in mc[2]:
-                self.AM.accept(mc)
-                return (mc, dist)
-
-        return (None, None)
 
     # 可能需要考虑所有匹配到的, 然后动态规划; 
     # 目前先优先选择候选集合中长的

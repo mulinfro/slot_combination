@@ -101,7 +101,6 @@ class AC():
         print("MAKE AUTOMATON SUCCESS")
 
     def match(self, dialog):
-        print(dialog)
         matched = self.match_a_ac(self.keyword_ac, dialog, "0")
         matched_slot = self.match_a_ac(self.slot_ac, dialog, "1")
         matched.extend(matched_slot)
