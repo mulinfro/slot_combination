@@ -1,0 +1,24 @@
+
+
+['2num_2bin', '2prefix_2num_2suffix', '2prefix_2num', '2num_2suffix', '2num', '2prefix_2num_2suffix_2bin', '2prefix_2num_2bin', '2num_2suffix_2bin', '2num_2bin']
+PLUS_FINGERPRINT {'prefix': {'_0前缀运算符': 1}, 'suffix': {'_0后缀运算符': 1}, 'num': {'_0dig': 1}, 'bin': {'_0二元运算符': 0, '_0二元运算符_2prefix_2num': 1, '_0二元运算符_2prefix': 0, '_0二元运算符_2num': 1, '_0二元运算符_2num_2suffix': 1, '_0二元运算符_2prefix_2num_2suffix': 1}}
+一加一乘以二减去根号三
+{'_0二元运算符': 0, '_0二元运算符_2prefix_2num': 1, '_0二元运算符_2prefix': 0, '_0二元运算符_2num': 1, '_0二元运算符_2num_2suffix': 1, '_0二元运算符_2prefix_2num_2suffix': 1}
+ALL_PLUS [(1, 10, ['bin'], '2')] [('_0二元运算符_2num', ((1, 1), (2, 2))), ('_0二元运算符_2num', ((3, 4), (5, 5))), ('_0二元运算符_2num', ((3, 3), (5, 5))), ('_0二元运算符_2prefix_2num', ((6, 7), (8, 9), (10, 10))), ('_0二元运算符_2prefix_2num', ((6, 6), (8, 9), (10, 10)))] {'_0二元运算符': 0, '_0二元运算符_2prefix_2num': 1, '_0二元运算符_2prefix': 0, '_0二元运算符_2num': 1, '_0二元运算符_2num_2suffix': 1, '_0二元运算符_2prefix_2num_2suffix': 1}
+[(0, 0, ['num'], '2'), (1, 10, ['bin'], '2'), (2, 2, ['num'], '2'), (5, 5, ['num'], '2'), (8, 9, ['prefix'], '2'), (10, 10, ['num'], '2')]
+begining match ...
+{'_2prefix': 0, '_2prefix_2num_2suffix_2bin': 1, '_2num_2bin': 1, '_2num_2suffix_2bin': 1, '_2prefix_2num_2suffix': 1, '_2num': 1, '_2prefix_2num_2bin': 1, '_2num_2suffix': 1, '_2prefix_2num': 1}
+[([('一', '2num'), ('加一乘以二减去根号三', '2bin')], 11, 0), ([('根号', '2prefix'), ('三', '2num')], 3, 0), ([('一', '2num')], 1, 0), ([('二', '2num')], 1, 0), ([('三', '2num')], 1, 0)]
+([('一', '2num'), ('加一乘以二减去根号三', '2bin')], 11, 0)
+
+
+['2prefix_2num_2suffix_2bin', '2prefix_2num_2bin', '2num_2suffix_2bin', '2num_2bin', '2prefix_2num_2suffix', '2prefix_2num', '2num_2suffix', '2num', '2num_2bin']
+PLUS_FINGERPRINT {'suffix': {'_0后缀运算符': 1}, 'bin': {'_0二元运算符': 0, '_0二元运算符_2prefix_2num_2suffix': 1, '_0二元运算符_2num_2suffix': 1, '_0二元运算符_2prefix': 0, '_0二元运算符_2prefix_2num': 1, '_0二元运算符_2num': 1}, 'num': {'_0dig': 1}, 'prefix': {'_0前缀运算符': 1}}
+一加一乘以二减去根号三
+{'_0二元运算符': 0, '_0二元运算符_2prefix_2num_2suffix': 1, '_0二元运算符_2num_2suffix': 1, '_0二元运算符_2prefix': 0, '_0二元运算符_2prefix_2num': 1, '_0二元运算符_2num': 1}
+ALL_PLUS [] [] {'_0二元运算符': 0, '_0二元运算符_2prefix_2num_2suffix': 1, '_0二元运算符_2num_2suffix': 1, '_0二元运算符_2prefix': 0, '_0二元运算符_2prefix_2num': 1, '_0二元运算符_2num': 1}
+[(0, 0, ['num'], '2'), (2, 2, ['num'], '2'), (5, 5, ['num'], '2'), (8, 9, ['prefix'], '2'), (10, 10, ['num'], '2')]
+begining match ...
+{'_2num_2suffix_2bin': 1, '_2prefix_2num_2suffix': 1, '_2prefix_2num_2bin': 1, '_2num_2bin': 1, '_2prefix_2num_2suffix_2bin': 1, '_2num': 1, '_2prefix': 0, '_2prefix_2num': 1, '_2num_2suffix': 1}
+[([('根号', '2prefix'), ('三', '2num')], 3, 0), ([('一', '2num')], 1, 0), ([('一', '2num')], 1, 0), ([('二', '2num')], 1, 0), ([('三', '2num')], 1, 0)]
+([('根号', '2prefix'), ('三', '2num')], 3, 0)

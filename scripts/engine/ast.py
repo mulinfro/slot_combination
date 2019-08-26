@@ -2,6 +2,7 @@
 from builtin import op_type, op_funcs
 from syntax_check import *
 from stream import stream
+import config
 
 def is_candi_op(tkn, candi):
     return tkn.tp == "OP" and tkn.val in candi
@@ -57,14 +58,26 @@ def get_cross_ele(lst, all_sets, i):
             ans.append( e + lst[i][0:-1])
     return get_cross_ele(lst, ans, i + 1)
 
+def get_plus_config(conf, new_conf, tp):
+    if tp in ["REF", "ATOM"]:
+        base_conf = conf.atom_plus
+    else:
+        base_conf = conf.var_plus
+    if new_conf is None: new_conf = {} 
+    for k, v in base_conf.items():
+        if k not in new_conf:
+            new_conf[k] = v
+
+    return new_conf
 
 class AST():
 
-    def __init__(self, stm):
+    def __init__(self, stm, conf):
         self.word_refs = []
         self.atom = []
         self.plus = []
         self.ast = {}
+        self.conf = conf
         self.build_ast(stm)
 
     def build_ast(self, stm):
@@ -122,6 +135,13 @@ class AST():
         #ast_same_type_seq(stm, lambda tkn: syntax_check(tkn, ("SEP","SEMI")))
         return {"tp": "ATOM", "name": rule_name, "body": body }
 
+    def get_body_tp(self, body):
+        tp = body["tp"] 
+        if tp == "VAR":
+            return self.ast[body["name"]]["tp"]
+        else:
+            return tp
+
     def ast_plus(self, stm):
         stm.next()
         rule_name = stm.next().val
@@ -129,6 +149,7 @@ class AST():
         body = self.ast_rule_body(stm)
         config, processer = self.ast_post(stm)
         ans = {"tp": "PLUS", "name":rule_name, "body": body }
+        config = get_plus_config(self.conf, config, self.get_body_tp(body))
         if config: ans["config"] = config
         if processer: ans["processer"] = processer
         return ans

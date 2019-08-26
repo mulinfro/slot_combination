@@ -20,4 +20,3 @@ plus bin = [{二元运算符}, {unary}]
 export expr0 = [ {unary}]
 export expr1 = [ {unary}, {bin} ] => { @G1, @G2="www", intent=$1, slot=join($2, $3, 0)  }
 export expr2 = [ {num}, {bin} ]
-export expr3 = [ {dig}, {bin} ]

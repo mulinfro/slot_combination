@@ -3,7 +3,6 @@ from env import Env
 
 from stream import stream, char_stream
 import ast, parse, builtin, build_ac
-import random
 from tokens import token_list
 import glob, os, config, math
 from syntax_check import syntax_cond_assert
@@ -29,10 +28,12 @@ def read_lex(lex_file):
     return ori_in
 
 def run(lex_file, input_str, dict_dir):
+
+    _config = config.config()
     ori_in = read_lex(lex_file)
     script = char_stream(ori_in)
     tokens = token_list(script).tokens
-    ast_tree = ast.AST(stream(tokens))
+    ast_tree = ast.AST(stream(tokens), _config)
 
     print(ast_tree.atom)
     print(ast_tree.plus)
@@ -48,7 +49,6 @@ def run(lex_file, input_str, dict_dir):
     ac_machine = build_ac.AC()
     ac_machine.make(keywords, all_slot_entity_files)
 
-    _config = config.config()
     rule_graph = parse.Rule_structure(ast_tree, ac_machine, _config)
     print("PLUS_FINGERPRINT", rule_graph.plus_fingerprint)
     parser = parse.Parse(rule_graph)

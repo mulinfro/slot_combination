@@ -17,6 +17,7 @@ class Rule_structure():
     def __init__(self, ast, ac_machine, conf):
         self.ast = ast.ast
         self.conf = conf
+        self.plus = ast.plus
         self.plus_fingerprint = self.get_plus_sign(ast.plus)
         rules_sign = self.get_sign(ast.ast)
         self.rule_fingerprint, export_tags = self.build_tp_prefixes(rules_sign)
@@ -96,15 +97,36 @@ class Parse():
     def __init__(self, rule_graph):
         self.rule_graph = rule_graph
 
-    def score(self, matched):
-        pass
+    def score(self, _m):
+        matched_length = len(_m)
+        for t in _m:
+            matched_length += t[1] - t[0]
 
-    def select(self, matched):
-        pass
+        miss_length = _m[-1][1] - _m[0][0] + 1 - matched_length
+        return (matched_length, miss_length)
+
+    def get_match_group(self, tp, _m, dialog):
+        eles = tp[1:].split("_")
+        sv = self.score(_m)
+        assert len(eles) == len(_m), "Need match"
+        ans = []
+        for i in range(len(_m)):
+            b_i, e_i = _m[i][0], _m[i][1] + 1
+            ans.append( (dialog[b_i: e_i], eles[i]))
+
+        return (ans, sv[0], sv[1])
+
+
+    def select(self, matched, dialog):
+        mm = [ self.get_match_group(tp, _m, dialog) for tp, _m in matched]
+        mm.sort(key = lambda x: (-x[1], x[2]))
+        print(mm)
+        return mm[0]
 
     def basic_set(self, dialog):
         self.dialog = dialog
         self.AM = self.rule_graph.ac_machine.match(dialog)
+        print("AM", self.AM.matched)
         self.plus_preprocess()
         if len(self.rule_graph.need_delete_tags) > 0:
             self.delete_tag()
@@ -120,11 +142,9 @@ class Parse():
 
     def max_match(self, dialog):
         self.basic_set(dialog)
-        print(self.AM.matched)
-
         print("begining match ...")
-        ans = self._greed_match(self.rule_graph.rule_fingerprint, {})
-        return ans
+        matched_eles = self._greed_match(self.rule_graph.rule_fingerprint, {})
+        return self.select(matched_eles, dialog)
 
     def search_macth(self):
         pass
@@ -190,23 +210,23 @@ class Parse():
 
 
     def plus_preprocess(self):
-        for ap_name in self.rule_graph.plus_fingerprint:
+        for ap_name in self.rule_graph.plus:
             node = self.rule_graph.ast[ap_name]
             bd = self.get_ast_body(node)
             conf = node.get("config", {})
             if bd["tp"] == "ATOM":
-                self.atom_plus_preprocess(bd, [ap_name], "keyword")
+                ap_tag = bd["name"]
+                self.atom_plus_preprocess(ap_tag, [ap_name], conf, "keyword")
             elif  bd["tp"] == "REF":
-                self.atom_plus_preprocess(bd, [ap_name], "slot")
+                ap_tag = bd["name"]
+                self.atom_plus_preprocess(ap_tag, [ap_name], conf, "slot")
             else:
                 self.var_plus_preprocess(ap_name, conf)
 
             self.AM.matched.sort(key = lambda x: (x[0], -x[1]) )
         
-    def atom_plus_preprocess(self, node, tag, tp = "keyword"):
+    def atom_plus_preprocess(self, ap_tag, tag, conf, tp = "keyword"):
         tag_index = self.AM.word_tag_index
-        ap_tag = node["name"]
-        conf = node["config"]
         if ap_tag not in tag_index or len(tag_index[ap_tag]) < conf["min_N"]:
             return None
 
