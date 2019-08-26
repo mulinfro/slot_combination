@@ -150,8 +150,57 @@ class Parse():
         matched_eles = self._greed_match(self.rule_graph.rule_fingerprint, {})
         return self.select(matched_eles, dialog)
 
-    def search_macth(self):
-        pass
+    def search_match(self, dialog):
+        self.basic_set(dialog)
+        matched_eles = self._search_match(self.rule_graph.rule_fingerprint, {})
+        return self.select(matched_eles, dialog)
+        
+    def _search_match(self, fingerprint ):
+        self.AM.reset()
+        all_matched = []
+        #print("fingerprint", len(fingerprint) ) 
+        while not self.AM.iter_end():
+            ele = self.AM.iter_init_status()
+            for ele_tp in ele[2]:
+                tp = "%s#%s%s"%("", ele[-1], ele_tp)
+                if tp in fingerprint:
+                    head_ele = ((ele[0], ele[1]), )
+                    matched_ans = self._search_match_helper(tp, head_ele, fingerprint, conf)
+                    if matched_ans:
+                        all_matched.extend(matched_ans)
+                    elif fingerprint[tp]:
+                        all_matched.append((tp, head_ele ))
+
+        return all_matched
+
+
+    # 对规则的最长匹配
+    def _search_match_helper(self, tp, matched_eles, fingerprint, conf):
+        best_ans = []
+        stack = [(tp, self.AM.save_state(), matched_eles)]
+        while len(stack):
+            tp, state, matched_eles = stack.pop(0)
+            self.AM.restore_state(state)
+            is_accept = False
+            while not is_accept and self.AM.has_next():
+                ele = self.AM.get_next()
+                #if self.get_word_dist(ele[0]) > self.conf.max_match_dist:
+                #    break
+
+                for ele_tp in ele[2]:
+                    new_tp = "%s#%s%s"%(tp, ele[-1], ele_tp)
+                    if new_tp in fingerprint:
+                        self.AM.accept(ele)
+                        is_accept = True
+                        new_matched_eles = matched_eles + ((ele[0], ele[1]) , )
+                        # simple
+                        # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
+                        if fingerprint[new_tp]:
+                            best_ans.append( (new_tp,  new_matched_eles) )
+                        stack.append((new_tp, self.AM.save_state(), new_matched_eles ) )
+
+        return best_ans
+
 
     def _double_greed_macth(self):
         pass
@@ -205,9 +254,6 @@ class Parse():
 
     # 递归实现
     def max_match_rec(self, tp, matched_eles):
-        pass
-
-    def search_match(self, dialog):
         pass
 
 
