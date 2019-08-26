@@ -9,4 +9,15 @@ class config:
 
     def reset(self, a, b, c, d, e):
         pass
+ 
+ """
+ PLUS
+ --min_N
+ --no_cover
 
+
+
+
+
+
+ """

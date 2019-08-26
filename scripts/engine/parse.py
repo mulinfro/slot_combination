@@ -14,8 +14,9 @@ def get_list_product(lst_of_lst):
 
 class Rule_structure():
 
-    def __init__(self, ast, ac_machine):
+    def __init__(self, ast, ac_machine, conf):
         self.ast = ast.ast
+        self.conf = conf
         self.plus_fingerprint = self.get_plus_sign(ast.plus)
         rules_sign = self.get_sign(ast.ast)
         self.rule_fingerprint, export_tags = self.build_tp_prefixes(rules_sign)
@@ -205,7 +206,8 @@ class Parse():
     def atom_plus_preprocess(self, node, tag, tp = "keyword"):
         tag_index = self.AM.word_tag_index
         ap_tag = node["name"]
-        if ap_tag not in tag_index or len(tag_index[ap_tag]) <= 1:
+        conf = node["config"]
+        if ap_tag not in tag_index or len(tag_index[ap_tag]) < conf["min_N"]:
             return None
 
         ids_of_tag = tag_index[ap_tag]
@@ -214,12 +216,16 @@ class Parse():
         cnt = 1
         for i in range(1, len(ids_of_tag)):
             start, end, _ = ids_of_tag[i]
-            pre_end= ids_of_tag[pre_tag_idx][1] + 1
-            if start == pre_end:
+            pre_end= ids_of_tag[pre_tag_idx][1]
+            if end <= pre_end:
+                continue
+
+            m_dist = start - pre_end
+            if m_dist > 0 and m_dist <= conf["max_dist"] + 1:
                 pre_tag_idx = i
                 cnt += 1
-            elif start > pre_end:
-                if cnt > 1:
+            elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ) :
+                if cnt >= conf["min_N"]:
                     ss_index, _, _ = ids_of_tag[beg_tag_idx]
                     _, se_index, _ = ids_of_tag[pre_tag_idx]
                     self.AM.matched.append( (ss_index, se_index, tag, "2") )
@@ -228,7 +234,7 @@ class Parse():
                 beg_tag_idx = i
                 cnt = 1
 
-        if cnt > 1:
+        if cnt >= conf["min_N"]:
             self.AM.matched.append((ids_of_tag[beg_tag_idx][0], ids_of_tag[pre_tag_idx][1], tag, "2") )
 
     def plus_extract(self, lst, tag, conf):
@@ -237,18 +243,21 @@ class Parse():
         cnt = 1
         for i in range(1, len(lst)):
             start, end, _ = lst[i]
-            pre_end= lst[p_i][1] + 1
-            if start == pre_end:
+            pre_end= lst[p_i][1]
+            if end <= pre_end: continue
+
+            m_dist = start - pre_end
+            if m_dist > 0 and m_dist <= conf["max_dist"] + 1:
                 p_i = i
                 cnt += 1
-            elif start > pre_end:
-                if cnt > 1:
+            elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ):
+                if cnt > conf["min_N"]:
                     ans.append( (lst[b_i][0], lst[p_i][1], tag, "2")  )
 
                 p_i = b_i =  i
                 cnt = 1
 
-        if cnt > 1:
+        if cnt > conf["min_N"]:
             ans.append( (lst[b_i][0], lst[p_i][1], tag, "2")  )
 
         return ans
@@ -264,7 +273,7 @@ class Parse():
         return ans
 
     def merge_ele(self, ele, b_idx, e_idx):
-        return (ele[0], e_idx, ele[2] + b_idx - ele[1] -1 )
+        return (ele[0], e_idx, ele[2] + b_idx - ele[1] -1)
 
     def var_plus_preprocess(self, rule_name, conf):
         figerprint = self.rule_graph.plus_fingerprint[rule_name]
@@ -272,7 +281,6 @@ class Parse():
         all_plus = self.plus_extract(self.merge_eles(all_matched), [rule_name], conf)
         print("ALL_PLUS", all_plus, all_matched, figerprint)
         self.AM.matched.extend(all_plus)
-
 
     def get_ast_body(self, node):
         bd = node["body"]

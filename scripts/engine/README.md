@@ -51,7 +51,6 @@ word_set
 只在export支持 | ;
 
 atom | 拼接？
-删除export不存在的tag
 
 先动态规划 去掉覆盖的问题再贪心匹配
 search
@@ -68,3 +67,5 @@ ABC  [A "BC.."] [AB "C.."]
 ABC  ["A" BCD..] ["AB" CD..]
 ABC  [AB CD..] [A BCD..]
 
+## DONE
+删除export不存在的tag
