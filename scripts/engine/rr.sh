@@ -8,7 +8,7 @@ if [ $# -ge 1 ] ; then
     python3 run.py -i ${ipath}/test -s ${sss}
 else
     sss="一加一乘以二减去根号三"
-    python3 run.py -i ${ipath}/test -f ${ipath}/test/cc_test.txt
+    python3 run.py -i ${ipath}/test -f ${ipath}/test/cc_test2.txt
 fi
 
 

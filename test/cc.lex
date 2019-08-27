@@ -7,8 +7,8 @@ rule 分数 = [{num0}, {frac_sym}, {num0} ]
 rule num = {num0}|{数字派}|{分数}
 
 atom 再操作 = 再|然后|之后|然后再|之后再
-atom 前缀运算符 = 正|负| 平方根|根号|根号下|开根号|立方根
-atom 二元运算符 = 加上|加|减去|减|减掉|乘上|乘以|乘|除以|除|与|和
+atom 前缀运算符 = 正|负|平方根|根号|根号下|开根号|立方根
+atom 二元运算符 = 加上?|减去?|减掉|乘上|乘以|乘|除以?|与|和
 atom 后缀运算符 = 倒数|绝对值|相反数|阶乘|平方|立方|平方根|立方根|负一次方|负二次方|负三次方
 
 plus prefix = {前缀运算符}
@@ -35,12 +35,15 @@ atom 等于 = 是|等于|得
 atom 多少 = 多少|几
 atom 算算 = 算一下|算一算|算算
 
-
 export more_c = [{expr0}, {再操作}, {后缀运算符} ]
 export hcjs = [{expr0}, {二元运算符}, {expr0}, {和差积商}]
 export calculator0= {expr0}
-#export calculator1=(${表达式})(知不知道)?(是|等于|得)(多少|几) 
 export calculator1=[{expr0}, {知不知道}?, {等于}, {多少}? ]
+export calculator3 = [{算算}, {expr0}]
+
+
+
+
 
 #export calculator12=^(${语气词})?(${表达式})(${语气词})?$ => request(domain="计算器", domainflag1="计算器") <0.8>;
 
@@ -48,7 +51,6 @@ export calculator1=[{expr0}, {知不知道}?, {等于}, {多少}? ]
 #export calculator2=[{表达式2}, {知不知道}?, {等于}, {多少}? ]
 
 #export calculator13=(算一下|算一算|算算)(${表达式}) => request(domain="计算器", domainflag1="计算器") <0.8>;
-export calculator3 = [{算算}, {expr0}]
 #export calculator14=(算一下|算一算|算算)(${表达式2})(等于|是|得)?(多少|得几|是几|等于几)(${语气词})?$ => request(domain="计算器", domainflag1="计算器") <0.8>;
 ## 特殊说法
 #export calculator1_1=(${表达式})(的|得)(多少|几)(${语气词})?$ => request(domain="计算器", domainflag1="计算器") <0.8>;
@@ -57,6 +59,7 @@ export calculator3 = [{算算}, {expr0}]
 #####绝对值 by hcx
 #_绝对值=${数字1}的?绝对值;
 #export calcultor001=^(${_绝对值})(是|等于)?(多少|几)?$ => request(domain="计算器", domainflag1="计算器") <0.8>;
+#export calculator1=(${表达式})(知不知道)?(是|等于|得)(多少|几) 
 
 # bugfix
 #export calculator1 = (${表达式})(是|等于|得)$ => request(domain="计算器", domainflag1="计算器") <0.78>;

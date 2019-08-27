@@ -116,12 +116,12 @@ class Parse():
 
         m_d = dialog[_m[0][0]: _m[-1][1]+1]
 
-        return (ans, m_d, sv[0], sv[1])
+        return (m_d, sv[0]/len(dialog), sv[1]/sv[0], ans)
 
 
     def select(self, matched, dialog):
         mm = [ self.get_match_group(tp, _m, dialog) for tp, _m in matched]
-        mm.sort(key = lambda x: (-x[2], x[3]))
+        mm.sort(key = lambda x: (-x[1], x[2]))
         return mm[0] if mm else None
 
     def basic_set(self, dialog):
