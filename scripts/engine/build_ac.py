@@ -62,8 +62,8 @@ class AC_matched():
     def accept(self, ele):
         self.accept_endidx = ele[1]
 
-    def get_word_dist(self, new_dist):
-        return new_dist - self.accept_endidx - 1
+    def get_word_dist(self, new_idx):
+        return new_idx - self.accept_endidx - 1
 
 class AC():
     def __init__(self):

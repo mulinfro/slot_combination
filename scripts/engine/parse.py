@@ -152,10 +152,11 @@ class Parse():
 
     def search_match(self, dialog):
         self.basic_set(dialog)
-        matched_eles = self._search_match(self.rule_graph.rule_fingerprint, {})
+        conf = self.rule_graph.conf.search
+        matched_eles = self._search_match(self.rule_graph.rule_fingerprint, conf)
         return self.select(matched_eles, dialog)
         
-    def _search_match(self, fingerprint ):
+    def _search_match(self, fingerprint, conf):
         self.AM.reset()
         all_matched = []
         #print("fingerprint", len(fingerprint) ) 
@@ -184,20 +185,36 @@ class Parse():
             is_accept = False
             while not is_accept and self.AM.has_next():
                 ele = self.AM.get_next()
-                #if self.get_word_dist(ele[0]) > self.conf.max_match_dist:
-                #    break
+
+                # 大于限定距离; break
+                if self.AM.get_word_dist(ele[0]) > conf["max_dist"]:
+                    break
 
                 for ele_tp in ele[2]:
                     new_tp = "%s#%s%s"%(tp, ele[-1], ele_tp)
                     if new_tp in fingerprint:
                         self.AM.accept(ele)
-                        is_accept = True
-                        new_matched_eles = matched_eles + ((ele[0], ele[1]) , )
+                        #is_accept = True
+                        new_matched_eles = matched_eles + ((ele[0], ele[1]), )
                         # simple
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
                         if fingerprint[new_tp]:
                             best_ans.append( (new_tp,  new_matched_eles) )
+                            # 到达最后一个且匹配到就没要再搜索下去
+                            """
+                            print(ele, new_matched_eles)
+                            if not self.AM.has_next():  
+                                print("NO HEAS")
+                                return best_ans
+                            """
+
                         stack.append((new_tp, self.AM.save_state(), new_matched_eles ) )
+                    elif conf["no_skip_atom"] and ele[-1] in "0":
+                        break_flag = True
+                        # 中间有atom， 且不准跨越atom
+                        break
+                    elif conf["no_skip_any"]:
+                        break
 
         return best_ans
 

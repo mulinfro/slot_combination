@@ -47,7 +47,8 @@ def run(lex_file, in_str, in_file, dict_dir):
         time_start=time.time()
         lines = open(in_file, encoding="utf-8").readlines()
         for in_str in lines:
-            ans = parser.max_match(in_str.strip())
+            #ans = parser.max_match(in_str.strip())
+            ans = parser.search_match(in_str.strip())
             print(in_str, ans)
         time_end=time.time()
         a_time = time_end-time_start
