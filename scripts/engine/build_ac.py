@@ -85,7 +85,8 @@ class AC():
                 if exists_flag is not None:
                     if tag not in exists_flag[0]:
                         exists_flag[0].append(tag)
-                    self.slot_ac.add_word(line, (exists_flag, len(line)))
+                        #assert type(exists_flag) == list, exists_flag
+                        self.slot_ac.add_word(line, (exists_flag[0], len(line)))
                 else:
                     self.slot_ac.add_word(line, ([tag], len(line)))
 
@@ -118,6 +119,7 @@ class AC():
         ans = {}
         for start_index, end_index, key, tag in key_index:
             for kk in key:
+                #if type(kk) is list: print(kk, key, tag)
                 val = ans.get(kk, [])
                 val.append( (start_index, end_index, tag) )
                 ans[kk] = val

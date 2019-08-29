@@ -3,12 +3,14 @@
 
 ipath=/home/liangliu/github/slot_combination
 
+#/home/liangliu/github/slot_combination/test/poetry_test
+
 if [ $# -ge 1 ] ; then
     sss=${1}
     python3 run.py -i ${ipath}/test -s ${sss}
 else
     sss="一加一乘以二减去根号三"
-    python3 run.py -i ${ipath}/test -f ${ipath}/test/cc_test2.txt
+    python3 run.py -i ${ipath}/test/poetry_test -d ${ipath}/test/poetry_test -f ${ipath}/test/cc_test2.txt 
 fi
 
 
