@@ -24,6 +24,8 @@ class Rule_structure():
         self.ac_machine = ac_machine
         self.need_delete_tags = self.get_need_delete_tag(export_tags, ast.atom + ast.word_refs + ast.plus)
         #print("DELETE_TAG", export_tags, self.need_delete_tags, )
+        assert "#0poe背诵#0量词#1poe古诗_类别" in self.rule_fingerprint, "ERRR"
+        print(self.rule_fingerprint["#0poe背诵#0量词#1poe古诗_类别"])
 
     def get_need_delete_tag(self, export_tags, all_tags):
         ans = set()
@@ -122,6 +124,7 @@ class Parse():
     def select(self, matched, dialog):
         mm = [ self.get_match_group(tp, _m, dialog) for tp, _m in matched]
         mm.sort(key = lambda x: (-x[1], x[2]))
+        #print(mm)
         return mm[0] if mm else None
 
     def basic_set(self, dialog):
@@ -132,7 +135,7 @@ class Parse():
         #print("AM 1", len(self.AM.matched), self.AM.matched)
         if len(self.rule_graph.need_delete_tags) > 0:
             self.delete_tag()
-        #print("AM FINAL", self.AM.matched)
+        print("AM FINAL", self.AM.matched)
 
     def delete_tag(self):
         new_AM = []
@@ -201,6 +204,7 @@ class Parse():
                         if fingerprint[new_tp]:
                             best_ans.append( (new_tp,  new_matched_eles) )
                             # 到达最后一个且匹配到就没要再搜索下去
+                            #print(ele, new_matched_eles)
                             """
                             print(ele, new_matched_eles)
                             if not self.AM.has_next():  

@@ -54,8 +54,10 @@ def run(lex_file, in_str, in_file, dict_dir):
         a_time = time_end-time_start
         print('totally cost', a_time, a_time/len(lines))
     else:
-        ans = parser.max_match(in_str)
-        print(ans)
+        ans = parser.max_match(in_str.strip())
+        print("\nMAX", ans)
+        ans = parser.search_match(in_str.strip())
+        print("\nSEARCH", ans)
 
 def build_lex(lex_file, dict_dir):
     pass
