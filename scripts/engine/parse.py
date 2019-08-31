@@ -24,8 +24,7 @@ class Rule_structure():
         self.ac_machine = ac_machine
         self.need_delete_tags = self.get_need_delete_tag(export_tags, ast.atom + ast.word_refs + ast.plus)
         #print("DELETE_TAG", export_tags, self.need_delete_tags, )
-        assert "#0poe背诵#0量词#1poe古诗_类别" in self.rule_fingerprint, "ERRR"
-        print(self.rule_fingerprint["#0poe背诵#0量词#1poe古诗_类别"])
+        #assert "#0poe背诵#0量词#1poe古诗_类别" in self.rule_fingerprint, "ERRR"
 
     def get_need_delete_tag(self, export_tags, all_tags):
         ans = set()
@@ -135,7 +134,7 @@ class Parse():
         #print("AM 1", len(self.AM.matched), self.AM.matched)
         if len(self.rule_graph.need_delete_tags) > 0:
             self.delete_tag()
-        print("AM FINAL", self.AM.matched)
+        #print("AM FINAL", self.AM.matched)
 
     def delete_tag(self):
         new_AM = []
@@ -196,11 +195,12 @@ class Parse():
                 for ele_tp in ele[2]:
                     new_tp = "%s#%s%s"%(tp, ele[-1], ele_tp)
                     if new_tp in fingerprint:
-                        self.AM.accept(ele)
+                        #self.AM.accept(ele)
                         #is_accept = True
                         new_matched_eles = matched_eles + ((ele[0], ele[1]), )
                         # simple
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
+                        #print(ele, new_matched_eles, new_tp)
                         if fingerprint[new_tp]:
                             best_ans.append( (new_tp,  new_matched_eles) )
                             # 到达最后一个且匹配到就没要再搜索下去
@@ -212,7 +212,7 @@ class Parse():
                                 return best_ans
                             """
 
-                        stack.append((new_tp, self.AM.save_state(), new_matched_eles ) )
+                        stack.append((new_tp, (self.AM._i, ele[1]) , new_matched_eles ) )
                     elif conf["no_skip_atom"] and ele[-1] in "0":
                         break_flag = True
                         # 中间有atom， 且不准跨越atom
