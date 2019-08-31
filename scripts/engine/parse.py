@@ -162,13 +162,14 @@ class Parse():
         self.AM.reset()
         all_matched = []
         #print("fingerprint", len(fingerprint) ) 
+        has_seen = set()
         while not self.AM.iter_end():
             ele = self.AM.iter_init_status()
             for ele_tp in ele[2]:
                 tp = "%s#%s%s"%("", ele[-1], ele_tp)
                 if tp in fingerprint:
                     head_ele = ((ele[0], ele[1]), )
-                    matched_ans = self._search_match_helper(tp, head_ele, fingerprint, conf)
+                    matched_ans = self._search_match_helper(tp, head_ele, fingerprint, has_seen, conf)
                     if matched_ans:
                         all_matched.extend(matched_ans)
                     elif fingerprint[tp]:
@@ -178,7 +179,7 @@ class Parse():
 
 
     # 对规则的最长匹配
-    def _search_match_helper(self, tp, matched_eles, fingerprint, conf):
+    def _search_match_helper(self, tp, matched_eles, fingerprint, has_seen, conf):
         best_ans = []
         stack = [(tp, self.AM.save_state(), matched_eles)]
         while len(stack):
@@ -194,6 +195,10 @@ class Parse():
 
                 for ele_tp in ele[2]:
                     new_tp = "%s#%s%s"%(tp, ele[-1], ele_tp)
+                    search_step_fingerprint = "%d&%s"%(self.AM._i, new_tp)
+                    if search_step_fingerprint in has_seen: continue
+
+                    has_seen.add(search_step_fingerprint)
                     if new_tp in fingerprint:
                         #self.AM.accept(ele)
                         #is_accept = True
