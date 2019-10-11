@@ -1,6 +1,5 @@
 from syntax_check import Error
 
-
 def get_list_product(lst_of_lst):
     ans = [""]
     for lst in lst_of_lst:
@@ -11,6 +10,14 @@ def get_list_product(lst_of_lst):
                 else:     new_ans.append( ("%s#%s"%(e, e2)).strip("#") )
         ans = new_ans
     return ans
+
+def get_set_product(lst_of_lst):
+    from itertools import permutations
+    ans = []
+    for p_lst in permutations(lst_of_lst):
+        ans.extend(get_list_product(p_lst))
+
+    return list(set(ans))
 
 class Rule_structure():
 
@@ -56,6 +63,9 @@ class Rule_structure():
         elif tp == "LIST":
             t = [ self.get_ele_sign(ele) for ele in rule["body"]]
             return get_list_product(t)
+        elif tp == "ANGLE":
+            t = [ self.get_ele_sign(ele) for ele in rule["body"]]
+            return get_set_product(t)
         elif tp == "VAR":
             name = rule["name"]
             return self.get_ele_sign(self.ast[name])

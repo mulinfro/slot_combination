@@ -161,7 +161,7 @@ class AST():
         body = self.ast_rule_body(stm)
         return {"tp": "RULE_BODY", "rule_name": rule_name, "body": body }
 
-    def ast_list_helper(self, stm):
+    def ast_list_helper(self, stm, tp):
         body = []
         while not stm.eof():
             syntax_assert(stm.peek(), "DICT", "need { here")
@@ -171,7 +171,7 @@ class AST():
                 syntax_check(stm.next(), ("SEP", "COMMA"))
             if stm.eof(): break
         syntax_cond_assert(len(body) >= 1, "empty parn")
-        return {"tp":"LIST", "body": body }
+        return {"tp":tp, "body": body }
 
     #还没有支持
     def try_ast_or(self, stm):
@@ -218,7 +218,10 @@ class AST():
         tp = stm.peek().tp
         if tp == "LIST":
             tkn = stm.next()
-            return self.ast_list_helper(stream(tkn.val))
+            return self.ast_list_helper(stream(tkn.val), tp)
+        elif tp == "ANGLE":
+            tkn = stm.next()
+            return self.ast_list_helper(stream(tkn.val), tp)
         elif tp == "DICT":
             return self.ast_try_or_ele(stm)
         else:
