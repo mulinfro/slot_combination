@@ -133,7 +133,7 @@ class Parse():
     def select(self, matched, dialog):
         mm = [ self.get_match_group(tp, _m, dialog) for tp, _m in matched]
         mm.sort(key = lambda x: (-x[1], x[2]))
-        #print(mm)
+        print("MM", len(mm))
         return mm[0] if mm else None
 
     def basic_set(self, dialog):
@@ -141,7 +141,7 @@ class Parse():
         self.AM = self.rule_graph.ac_machine.match(dialog)
         #print("AM 0", len(self.AM.matched))
         self.plus_preprocess()
-        #print("AM 1", len(self.AM.matched), self.AM.matched)
+        print("AM 1", len(self.AM.matched), self.AM.matched)
         if len(self.rule_graph.need_delete_tags) > 0:
             self.delete_tag()
         #print("AM FINAL", self.AM.matched)

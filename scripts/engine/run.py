@@ -43,21 +43,23 @@ def run(lex_file, in_str, in_file, dict_dir):
     rule_graph = parse.Rule_structure(ast_tree, ac_machine, _config)
     #print("PLUS_FINGERPRINT", rule_graph.plus_fingerprint)
     parser = parse.Parse(rule_graph)
+    time_start=time.time()
+    nums = 1
     if in_file:
-        time_start=time.time()
         lines = open(in_file, encoding="utf-8").readlines()
+        nums = len(lines)
         for in_str in lines:
             #ans = parser.max_match(in_str.strip())
             ans = parser.search_match(in_str.strip())
             print(in_str, ans)
-        time_end=time.time()
-        a_time = time_end-time_start
-        print('totally cost', a_time, a_time/len(lines))
     else:
-        ans = parser.max_match(in_str.strip())
-        print("\nMAX", ans)
+        #ans = parser.max_match(in_str.strip())
+        #print("\nMAX", ans)
         ans = parser.search_match(in_str.strip())
         print("\nSEARCH", ans)
+    time_end=time.time()
+    a_time = time_end-time_start
+    print('totally cost', a_time, a_time/nums)
 
 def build_lex(lex_file, dict_dir):
     pass
