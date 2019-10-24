@@ -1,11 +1,11 @@
 import ahocorasick
 
 class AC_matched():
-    def __init__(self, a, b):
+    def __init__(self, a, b, c):
         self.matched = a
         self.word_tag_index = b
+        self.word_next_idx = c
         self._i = 0
-        self.init_i = 0
         self.accept_endidx = -1
 
     def save_state(self):
@@ -17,27 +17,22 @@ class AC_matched():
 
     def reset(self):
         self._i = 0
-        self.init_i = 0
         self.accept_endidx = -1
-
-    def iter_end(self):
-        return self.init_i >= len(self.matched)
 
     def has_next(self):
         self.skip_unaccept()
         return self._i < len(self.matched)
 
-    def iter_init_status(self):
-        if self.init_i < len(self.matched):
-            self.init_i += 1
-            self._i = self.init_i
-            keyword = self.matched[self._i - 1]
-            self.accept(keyword)
-            return keyword
+    def iter_init_status(self, init_i):
+        keyword = self.matched[init_i]
+        self.accept(keyword)
+        self.skip_unaccept()
+        return keyword
 
     def skip_unaccept(self):
-        while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
-            self._i += 1
+        self._i = self.word_next_idx[ self.accept_endidx + 1 ]
+        #while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
+        #    self._i += 1
 
     def get_cur(self):
         self.skip_unaccept()
@@ -101,27 +96,43 @@ class AC():
         self.keyword_ac.make_automaton()
         print("MAKE AUTOMATON SUCCESS")
 
-    def match(self, dialog):
-        matched = self.match_a_ac(self.keyword_ac, dialog, "0")
-        matched_slot = self.match_a_ac(self.slot_ac, dialog, "1")
+    def match(self, query):
+        matched = self.match_a_ac(self.keyword_ac, query, "0")
+        matched_slot = self.match_a_ac(self.slot_ac, query, "1")
         matched.extend(matched_slot)
         matched.sort(key = lambda x: (x[0], -x[1]) )
-        return AC_matched(matched, self.get_tag_idx_dict(matched))
+        return AC_matched(matched, self.get_tag_idx_dict(matched), self.build_word_next_idx(matched, query))
         
-    def match_a_ac(self, A, dialog, word_tp):
+    def match_a_ac(self, A, query, word_tp):
         ans = []
-        for end_index, (tag, key_length) in A.iter(dialog):
+        for end_index, (tag, key_length) in A.iter(query):
             start_index = end_index - key_length + 1
             ans.append((start_index, end_index, tag, word_tp))
         return ans
 
     def get_tag_idx_dict(self, key_index):
         ans = {}
-        for start_index, end_index, key, tag in key_index:
-            for kk in key:
+        for start_index, end_index, tags, tp in key_index:
+            for kk in tags:
                 #if type(kk) is list: print(kk, key, tag)
                 val = ans.get(kk, [])
-                val.append( (start_index, end_index, tag) )
+                val.append( (start_index, end_index, tp) )
                 ans[kk] = val
         return ans
         
+    # 每个位置的下一个合法位置的索引
+    def build_word_next_idx(self, key_index, query):
+        ans = [-1] * len(query)
+        for j, (start_index, end_index, tags, tp) in enumerate(key_index):
+            if ans[start_index] < 0:
+                ans[start_index] = j
+
+        pre = len(key_index)
+        ans.append(pre)
+        for j in range(len(ans) -1, -1, -1):
+            if ans[j] < 0:
+                ans[j] = pre
+            else:
+                pre = ans[j]
+
+        return ans

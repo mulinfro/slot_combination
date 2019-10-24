@@ -173,8 +173,8 @@ class Parse():
         all_matched = []
         #print("fingerprint", len(fingerprint) ) 
         has_seen = set()
-        while not self.AM.iter_end():
-            ele = self.AM.iter_init_status()
+        for i in range(len(self.AM.matched)):
+            ele = self.AM.iter_init_status(i)
             for ele_tp in ele[2]:
                 tp = "%s#%s%s"%("", ele[-1], ele_tp)
                 if tp in fingerprint:
@@ -245,8 +245,8 @@ class Parse():
         self.AM.reset()
         all_matched = []
         #print("fingerprint", len(fingerprint) ) 
-        while not self.AM.iter_end():
-            ele = self.AM.iter_init_status()
+        for i in range(len(self.AM.matched)):
+            ele = self.AM.iter_init_status(i)
             for ele_tp in ele[2]:
                 tp = "%s#%s%s"%("", ele[-1], ele_tp)
                 if tp in fingerprint:
