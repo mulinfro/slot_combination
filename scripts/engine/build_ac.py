@@ -9,11 +9,11 @@ class AC_matched():
         self.accept_endidx = -1
 
     def save_state(self):
-        return (self._i, self.accept_endidx)
+        return self.accept_endidx
 
     def restore_state(self, state):
-        self._i = state[0]
-        self.accept_endidx = state[1]
+        self.accept_endidx = state
+        self.skip_unaccept()
 
     def reset(self):
         self._i = 0

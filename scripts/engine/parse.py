@@ -227,7 +227,7 @@ class Parse():
                                 return best_ans
                             """
 
-                        stack.append((new_tp, (self.AM._i, ele[1]) , new_matched_eles ) )
+                        stack.append((new_tp, ele[1], new_matched_eles ) )
                     elif conf["no_skip_atom"] and ele[-1] in "0":
                         break_flag = True
                         # 中间有atom， 且不准跨越atom
