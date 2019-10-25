@@ -30,7 +30,7 @@ class AC_matched():
         return keyword
 
     def skip_unaccept(self):
-        self._i = self.word_next_idx[ self.accept_endidx + 1 ]
+        self._i = max(self._i, self.word_next_idx[ self.accept_endidx + 1 ])
         #while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
         #    self._i += 1
 
@@ -94,7 +94,7 @@ class AC():
         self.init_keyword_ac(all_keywords)
         self.slot_ac.make_automaton()
         self.keyword_ac.make_automaton()
-        print("MAKE AUTOMATON SUCCESS")
+        print("MAKE AUTOMATION SUCCESS")
 
     def match(self, query):
         matched = self.match_a_ac(self.keyword_ac, query, "0")
@@ -128,6 +128,7 @@ class AC():
                 ans[start_index] = j
 
         pre = len(key_index)
+        print(ans)
         ans.append(pre)
         for j in range(len(ans) -1, -1, -1):
             if ans[j] < 0:
@@ -135,4 +136,5 @@ class AC():
             else:
                 pre = ans[j]
 
+        print(ans)
         return ans

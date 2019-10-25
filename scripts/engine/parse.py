@@ -198,6 +198,7 @@ class Parse():
             is_accept = False
             while not is_accept and self.AM.has_next():
                 ele = self.AM.get_next()
+                #print(self.AM._i, ele)
 
                 # 大于限定距离; break
                 if self.AM.get_word_dist(ele[0]) > conf["max_dist"]:
