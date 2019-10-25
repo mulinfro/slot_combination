@@ -77,7 +77,7 @@ class Rule_structure():
                 ele_sign = self.get_ele_sign(bd["body"])
                 all_signs.extend(ele_sign)
 
-        #print("ALL_SIGNS", len(all_signs))
+        print("ALL_SIGNS", len(all_signs))
         #print(all_signs)
         return all_signs
                 
@@ -133,7 +133,7 @@ class Parse():
     def select(self, matched, dialog):
         mm = [ self.get_match_group(tp, _m, dialog) for tp, _m in matched]
         mm.sort(key = lambda x: (-x[1], x[2]))
-        print("MM", len(mm))
+        #print("MM", len(mm))
         return mm[0] if mm else None
 
     def basic_set(self, dialog):
@@ -141,20 +141,11 @@ class Parse():
         self.AM = self.rule_graph.ac_machine.match(dialog)
         #print("AM 0", len(self.AM.matched))
         self.plus_preprocess()
-        print("AM 1", len(self.AM.matched), self.AM.matched)
+        self.AM.matched.sort(key = lambda x: (x[0], -x[1]) )
         if len(self.rule_graph.need_delete_tags) > 0:
-            self.delete_tag()
-        #print("AM FINAL", self.AM.matched)
-
-    def delete_tag(self):
-        new_AM = []
-        #print("$ DELETE", self.rule_graph.need_delete_tags)
-        for (a,b,tag,c) in self.AM.matched:
-            new_tag = [ t for t in tag if t not in self.rule_graph.need_delete_tags]
-            if new_tag:
-                new_AM.append( (a,b,new_tag, c) )
-            
-        self.AM.matched = new_AM
+            self.AM.delete_tag(self.rule_graph.need_delete_tags)
+        self.AM.build_word_next_idx(len(dialog))
+        #print("AM FINAL", len(self.AM.matched), self.AM.matched)
 
     def max_match(self, dialog):
         self.basic_set(dialog)
@@ -198,7 +189,6 @@ class Parse():
             is_accept = False
             while not is_accept and self.AM.has_next():
                 ele = self.AM.get_next()
-                #print(self.AM._i, ele)
 
                 # 大于限定距离; break
                 if self.AM.get_word_dist(ele[0]) > conf["max_dist"]:
@@ -228,7 +218,7 @@ class Parse():
                                 return best_ans
                             """
 
-                        stack.append((new_tp, ele[1], new_matched_eles ) )
+                        stack.append((new_tp, (self.AM._i, ele[1]), new_matched_eles ) )
                     elif conf["no_skip_atom"] and ele[-1] in "0":
                         break_flag = True
                         # 中间有atom， 且不准跨越atom
@@ -308,7 +298,6 @@ class Parse():
             else:
                 self.var_plus_preprocess(ap_name, conf)
 
-            self.AM.matched.sort(key = lambda x: (x[0], -x[1]) )
         
     def atom_plus_preprocess(self, ap_tag, tag, conf, tp = "keyword"):
         tag_index = self.AM.word_tag_index

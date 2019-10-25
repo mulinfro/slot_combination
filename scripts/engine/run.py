@@ -44,6 +44,7 @@ def run(lex_file, in_str, in_file, dict_dir):
     #print("PLUS_FINGERPRINT", rule_graph.plus_fingerprint)
     parser = parse.Parse(rule_graph)
     time_start=time.time()
+    time_ori = time_start
     nums = 1
     if in_file:
         lines = open(in_file, encoding="utf-8").readlines()
@@ -51,14 +52,18 @@ def run(lex_file, in_str, in_file, dict_dir):
         for in_str in lines:
             #ans = parser.max_match(in_str.strip())
             ans = parser.search_match(in_str.strip())
+            #time_end=time.time()
+            #a_time = time_end-time_start
+            #print( a_time)
+            #time_start = time_end
             print(in_str, ans)
     else:
         #ans = parser.max_match(in_str.strip())
         #print("\nMAX", ans)
         ans = parser.search_match(in_str.strip())
-        print("\nSEARCH", ans)
+        print("\nSEARCH", ans[0])
     time_end=time.time()
-    a_time = time_end-time_start
+    a_time = time_end-time_ori
     print('totally cost', a_time, a_time/nums)
 
 def build_lex(lex_file, dict_dir):

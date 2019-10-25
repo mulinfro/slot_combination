@@ -1,19 +1,44 @@
 import ahocorasick
 
 class AC_matched():
-    def __init__(self, a, b, c):
+    def __init__(self, a, b):
         self.matched = a
         self.word_tag_index = b
-        self.word_next_idx = c
+        self.word_next_idx = None
         self._i = 0
         self.accept_endidx = -1
 
+    def delete_tag(self, need_delete_tags):
+        new_AM = []
+        for (a,b,tag,c) in self.matched:
+            new_tag = [ t for t in tag if t not in need_delete_tags]
+            if new_tag:
+                new_AM.append( (a,b,new_tag, c) )
+        self.matched = new_AM
+
+    # 每个位置的下一个合法位置的索引
+    def build_word_next_idx(self, n):
+        ans = [-1] * n
+        for j, (start_index, end_index, tags, tp) in enumerate(self.matched):
+            if ans[start_index] < 0:
+                ans[start_index] = j
+
+        pre = len(self.matched)
+        ans.append(pre)
+        for j in range(len(ans) -1, -1, -1):
+            if ans[j] < 0:
+                ans[j] = pre
+            else:
+                pre = ans[j]
+
+        return ans
+
     def save_state(self):
-        return self.accept_endidx
+        return (self._i, self.accept_endidx)
 
     def restore_state(self, state):
-        self.accept_endidx = state
-        self.skip_unaccept()
+        self._i = state[0]
+        self.accept_endidx = state[1]
 
     def reset(self):
         self._i = 0
@@ -26,13 +51,16 @@ class AC_matched():
     def iter_init_status(self, init_i):
         keyword = self.matched[init_i]
         self.accept(keyword)
+        self._i = init_i
         self.skip_unaccept()
         return keyword
 
     def skip_unaccept(self):
-        self._i = max(self._i, self.word_next_idx[ self.accept_endidx + 1 ])
-        #while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
-        #    self._i += 1
+        if self.word_next_idx:
+            self._i = max(self._i, self.word_next_idx[ self.accept_endidx + 1 ])
+        else:
+            while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
+                self._i += 1
 
     def get_cur(self):
         self.skip_unaccept()
@@ -101,7 +129,7 @@ class AC():
         matched_slot = self.match_a_ac(self.slot_ac, query, "1")
         matched.extend(matched_slot)
         matched.sort(key = lambda x: (x[0], -x[1]) )
-        return AC_matched(matched, self.get_tag_idx_dict(matched), self.build_word_next_idx(matched, query))
+        return AC_matched(matched, self.get_tag_idx_dict(matched))
         
     def match_a_ac(self, A, query, word_tp):
         ans = []
@@ -118,23 +146,4 @@ class AC():
                 val = ans.get(kk, [])
                 val.append( (start_index, end_index, tp) )
                 ans[kk] = val
-        return ans
-        
-    # 每个位置的下一个合法位置的索引
-    def build_word_next_idx(self, key_index, query):
-        ans = [-1] * len(query)
-        for j, (start_index, end_index, tags, tp) in enumerate(key_index):
-            if ans[start_index] < 0:
-                ans[start_index] = j
-
-        pre = len(key_index)
-        print(ans)
-        ans.append(pre)
-        for j in range(len(ans) -1, -1, -1):
-            if ans[j] < 0:
-                ans[j] = pre
-            else:
-                pre = ans[j]
-
-        print(ans)
         return ans
