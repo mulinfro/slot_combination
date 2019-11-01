@@ -1,26 +1,20 @@
 
-class NodeConfig:
-    def __init__(self):
-        pass
-
-
-
 
 class Trie:
  
     def __init__(self):
         """
-            Initialize
+            Initialize: {"k1": nodeConfig, "k2": nodeConfig }
         """
         self.root = {}
-        self.end = ()
-        self.node_config = ()
+        self.end = set()
+        self.node = ()
  
-    def insert(self, rule):
+    def insert(self, eles):
         curNode = self.root
-        for c in word:
+        for tag, conf in eles:
             if not c in curNode:
-                curNode[c] = {}
+                curNode[c] = 
             curNode = curNode[c]
           
         curNode[self.word_end] = True

@@ -12,7 +12,7 @@
 
 """
 
-class config:
+class Config:
 
     def __init__(self):
         self.atom_plus = {"min_N":1, "no_cover":1, "max_dist": 0 }
@@ -25,3 +25,15 @@ class config:
     def reset(self, a, b, c, d, e):
         pass
  
+
+class NodeConfig:
+
+    def __init__(self):
+        self.max_dist = 3
+        self.slot_len = [0, 0]
+        self.slot_not_beginswith = ( )
+        self.slot_beginswith = ( )
+
+
+    def equal(self, r):
+        return False
