@@ -1,6 +1,7 @@
 
-from builtin import op_type, keywords, op_alp, op_info
 from syntax_check import *
+
+op_specil = ["+", "-", "?"]
 
 class token():
     def __init__(self, tkn_type, tkn_val, line=0, col=0):
@@ -50,7 +51,6 @@ class token_list():
         elif ch == '{': tkn = self.read_hashmap()
         elif ch == '(': tkn = self.read_parn()
         elif str.isdigit(ch): tkn = self.read_num()
-        elif ch in op_alp: tkn = self.read_op()
         elif ch in ',\n;':     tkn = self.read_sep()
         else: tkn = self.read_var()
         return tkn
@@ -62,17 +62,19 @@ class token_list():
 
     def read_var(self):
         line, col = self.chars.line, self.chars.col
-        is_valid = lambda x: x not in '"<>{}[]()#,;\n \t' + op_alp
+        is_valid = lambda x: x not in '"<>{}[]()#,;\n \t'
         var = ""
         while not self.chars.eof() and is_valid(self.chars.peek()):
             var += self.chars.next()
-        if var in keywords: 
-            kw = keywords[var]
-            if kw in ["IF", "END"]:
-                return self.read_note()
-            return token(kw, var, line, col)
         if var == "":
             Error("Unexpected symbol", line, col)
+        elif var.startswith("_"):
+            return token("TYPE", var, line, col)
+        elif var in op_specil:
+            return token("SPECIL_OP", var, line, col)
+        else:
+            return token("VAR", var, line, col)
+
             
         return token("STR", var, line, col)
         

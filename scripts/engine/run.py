@@ -16,11 +16,12 @@ def read_lex(lex_file):
     for file_name in files:
         with open(file_name, encoding="utf-8") as f:
             ori_in += f.read()
+    print(ori_in)
     return ori_in
 
 def run(lex_file, in_str, in_file, dict_dir):
 
-    _config = config.config()
+    _config = config.Config()
     ori_in = read_lex(lex_file)
     script = char_stream(ori_in)
     tokens = token_list(script).tokens
@@ -35,7 +36,10 @@ def run(lex_file, in_str, in_file, dict_dir):
 
     all_slot_entity_files = []
     if dict_dir:
-        all_slot_entity_files = glob.glob(dict_dir + "/*.txt")
+        dict_dirs = dict_dir.split(",")
+        for dir_path in dict_dirs:
+            all_slot_entity_files.extend(glob.glob(dir_path + "/*.txt"))
+    print(all_slot_entity_files)
     keywords = ast.extract_all_atoms(ast_tree)
     ac_machine = build_ac.AC()
     ac_machine.make(keywords, all_slot_entity_files)
@@ -50,6 +54,8 @@ def run(lex_file, in_str, in_file, dict_dir):
         lines = open(in_file, encoding="utf-8").readlines()
         nums = len(lines)
         for in_str in lines:
+            in_str = in_str.strip()
+            if not in_str: continue
             #ans = parser.max_match(in_str.strip())
             ans = parser.search_match(in_str.strip())
             #time_end=time.time()
@@ -61,7 +67,7 @@ def run(lex_file, in_str, in_file, dict_dir):
         #ans = parser.max_match(in_str.strip())
         #print("\nMAX", ans)
         ans = parser.search_match(in_str.strip())
-        print("\nSEARCH", ans[0])
+        print("\nSEARCH", ans)
     time_end=time.time()
     a_time = time_end-time_ori
     print('totally cost', a_time, a_time/nums)

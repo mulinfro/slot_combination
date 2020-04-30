@@ -90,8 +90,8 @@ class AC_matched():
 
 class AC():
     def __init__(self):
-        self.keyword_ac = ahocorasick.Automaton()
-        self.slot_ac = ahocorasick.Automaton()
+        self.keyword_ac = None
+        self.slot_ac = None
 
     def init_slot_ac(self, files):
         if not files:
@@ -104,6 +104,7 @@ class AC():
             tag = f.split("/")[-1].split(".")[0]
             for line in open(f):
                 line = line.strip()
+                if not line: continue
                 exists_flag = self.slot_ac.get(line, None)
                 if exists_flag is not None:
                     if tag not in exists_flag[0]:
@@ -118,11 +119,15 @@ class AC():
             self.keyword_ac.add_word(k, (v, len(k)))
 
     def make(self, all_keywords, files):
-        self.init_slot_ac(files)
-        self.init_keyword_ac(all_keywords)
-        self.slot_ac.make_automaton()
-        self.keyword_ac.make_automaton()
-        print("MAKE AUTOMATION SUCCESS")
+        if files:
+            self.slot_ac = ahocorasick.Automaton()
+            self.init_slot_ac(files)
+            self.slot_ac.make_automaton()
+        if all_keywords:
+            self.keyword_ac = ahocorasick.Automaton()
+            self.init_keyword_ac(all_keywords)
+            self.keyword_ac.make_automaton()
+        print("MAKE AUTOMATION SUCCESS", self.keyword_ac, self.slot_ac)
 
     def match(self, query):
         matched = self.match_a_ac(self.keyword_ac, query, "0")
@@ -133,6 +138,7 @@ class AC():
         
     def match_a_ac(self, A, query, word_tp):
         ans = []
+        if A is None: return ans
         for end_index, (tag, key_length) in A.iter(query):
             start_index = end_index - key_length + 1
             ans.append((start_index, end_index, tag, word_tp))
