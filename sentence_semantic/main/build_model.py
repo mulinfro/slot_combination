@@ -124,7 +124,6 @@ class Rule():
 
 
 def read_all_words(path, rev_dic):
-    print(path)
     import os
     ans = {}
     for filename in os.listdir(path):
@@ -190,7 +189,7 @@ def get_rule_ele_tp(re):
     if re[0] == "SET":
         return "set"
     elif re[0] == "ELE":
-        return re[1][1]
+        return re[1][1].strip("_")
     return "none"
 
 def gen_new_rule_abstract(pat, rule):
@@ -204,6 +203,7 @@ def gen_new_rule_abstract(pat, rule):
         for i in range(rules_size):
             if has_seen[i]: continue
             r_tp = get_rule_ele_tp(rule_body[i])
+            #print("R_TP", r_tp)
             if pat == r_tp:
                 new_rule_body.append(rule_body[i])
                 has_seen[i] = True
@@ -233,8 +233,8 @@ def gen_new_rule(pat, rule):
                     break
 
     new_rule.init_with_detail(new_rule_body, rule.intent)
-    print("PAT", pat_eles)
-    print("NEW_RULE", new_rule)
+    #print("PAT", pat_eles)
+    #print("NEW_RULE", new_rule)
     return new_rule
 
 
@@ -245,6 +245,7 @@ class Model():
         self.words_dict = WordDatabase()
         self.rules = []
         self.extend_rules = []
+        self.rule_cnt = 0
 
 
     #读入样本
@@ -258,7 +259,7 @@ class Model():
             rule.init_with_sample(line, self.words_dict)
             self.rules.append(rule)
 
-        print("READ SAMPLES", self.rules)
+        #print("READ SAMPLES", self.rules)
 
 
     # 搜索&构建同义词词库
@@ -268,16 +269,17 @@ class Model():
 
     #搜索&构建句式
     def build_patterns_abstract(self):
-        has_seen = set()
         for rule in self.rules:
+            has_seen = set()
             pats = rule.gen_pattern_abstract()
             has_seen.update(pats)
-            print(pats)
             for pat in pats:
                 extend_pats = self.words_dict.find_similar_patterns(pat)
                 for e_pat in extend_pats:
                     if e_pat in has_seen: continue
                     new_rule = gen_new_rule_abstract(e_pat, rule)
+                    print("PATS", rule, pats, "\n")
+                    print("'NEW_RULE", new_rule)
                     self.extend_rules.append(new_rule)
                     has_seen.add(e_pat)
         print("EXTEND_RULES", self.extend_rules)
@@ -286,7 +288,16 @@ class Model():
     #生成规则
     # export poetry7_4=[{poe操作}, {量词}?, {.古诗_作者}?, {c1}?, {.poe古诗_类别} ]
     # ('ELE', ('我想', 'none', ['需求_prefix'], ["udf"], ['?']))
-    def generate_rule_slot(self, re, atoms):
+    def generate_a_new_rule(self, rules, rv):
+        if rv in rules:
+            return rules[rv]
+        else:
+            new_rid = "rule_%d"%self.rule_cnt
+            self.rule_cnt += 1
+            rules[rv] = new_rid
+            return new_rid
+            
+    def generate_rule_slot(self, re, atoms, rules, plus):
         tp, val = re
         if '-' in  val[4]:
             if val[0] not in atoms: atoms.append(val[0])
@@ -299,48 +310,66 @@ class Model():
             if val[0] not in atoms: atoms.append(val[0])
             dnames = "{%s}"%val[0]
 
+        if "|" in dnames:
+            rule_id = self.generate_a_new_rule(rules, dnames)
+            dnames = "{%s}"%rule_id
+
         if "+" in val[4]:
-            dnames = dnames + "+"
-        elif "?" in val[4]:
+            #dnames = dnames + "+"
+            dnames = "{%s}"%self.generate_a_new_rule(plus, dnames)
+        if "?" in val[4]:
             dnames = dnames + "?"
         return dnames
 
-    def generate_rule_ele(self, re, atoms):
+    def generate_rule_ele(self, re, atoms, rules, plus):
         tp, val = re
         if tp == "ELE":
-            return self.generate_rule_slot(re, atoms)
+            return self.generate_rule_slot(re, atoms, rules, plus)
         elif tp == "SET":
-            t = ",".join([self.generate_rule_ele(ee, atoms) for ee in re[1] ])
-            return "<%s>"%t
+            t = ",".join([self.generate_rule_ele(ee, atoms, rules, plus) for ee in re[1] ])
+            dnames = "<%s>"%t
+            rule_id = self.generate_a_new_rule(rules, dnames)
+            dnames = "{%s}"%rule_id
+            return dnames
 
     def generate_rules(self):
         atoms = []
-        new_rules = []
+        rules = {}
+        plus = {}
+        export_rules = []
         for rule in self.rules + self.extend_rules:
             new_rule_parts = []
             for ele in rule.rule_body:
-                new_rule_parts.append(self.generate_rule_ele(ele, atoms))
+                new_rule_parts.append(self.generate_rule_ele(ele, atoms, rules, plus))
 
             if len(new_rule_parts) > 1:
-                new_rules.append( "[" + ",".join(new_rule_parts) + "]" )
+                export_rules.append( "[" + ",".join(new_rule_parts) + "]" )
             else:
-                new_rules.append(new_rule_parts[0])
+                export_rules.append(new_rule_parts[0])
 
 
-        print("ATOM", atoms, new_rules)
-        return (atoms, new_rules)
+        #print("ATOM", atoms, export_rules)
+        return (atoms, rules, plus, export_rules)
 
     #输出规则
-    def write2file(self, atoms, new_rules):
+    def write2file(self, atoms, rules, plus, export_rules):
         samples_lex_out_file = "../projects/" + self.samples_file.split(".")[0] + ".lex"
         with open(samples_lex_out_file, "w") as f:
             for atom in atoms:
                 f.write( "atom %s = %s"%(atom, atom) + "\n" )
 
+            for bd, rule_id in rules.items():
+                f.write( "rule %s = %s"%(rule_id, bd) + "\n" )
+
+            for bd, rule_id in plus.items():
+                f.write( "plus %s = %s"%(rule_id, bd) + "\n" )
+
             i = 0
-            for rule in new_rules:
+            for rule in export_rules:
                 i = i + 1
                 f.write( "export rule%d = %s"%(i, rule) + "\n" )
+
+            f.write("\n" )
 
         
 
@@ -349,6 +378,6 @@ class Model():
         self.read_simples()
         self.build_synonyms()
         self.build_patterns_abstract()
-        atoms, rules = self.generate_rules()
-        self.write2file(atoms, rules)
+        atoms, rules, plus, export_rules = self.generate_rules()
+        self.write2file(atoms, rules, plus, export_rules)
 

@@ -107,7 +107,7 @@ class AST():
         stm.next()
         rule = self.ast_rule_helper(stm)
         config, processer = self.ast_post(stm)
-        syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
+        syntax_cond_assert(is_rule_end(stm, True), "acc %s; expected rule end"%stm.peek().val)
 
         ans = {"tp": "EXPORT", "name": rule["rule_name"], "body": rule["body"] }
         if config: ans["config"] = config
@@ -164,7 +164,7 @@ class AST():
     def ast_list_helper(self, stm, tp):
         body = []
         while not stm.eof():
-            syntax_assert(stm.peek(), "DICT", "need { here")
+            syntax_assert(stm.peek(), "DICT", "\n is %s, need { here"%stm.peek().tp)
             ele = self.ast_try_or_ele(stm)
             body.append(ele)
             if not stm.eof():

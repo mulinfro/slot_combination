@@ -13,10 +13,10 @@ ipath=/home/liangliu/github/slot_combination/sentence_semantic
 if [ $# -ge 1 ] ; then
     sss=${1}
     #python3 run.py -i ${ipath}/test/poetry_test -d ${ipath}/test/poetry_test -s ${sss}
-    python3 $run_path/run.py -i ${ipath}/projects -d ${ipath}/lexicon/domain,${ipath}/lexicon/general -s ${sss}
+    python3 $run_path/run.py -i ${ipath}/projects/古诗 -d ${ipath}/lexicon/domain,${ipath}/lexicon/general -s ${sss}
 else
     sss="一加一乘以二减去根号三"
-    python3 $run_path/run.py -i ${ipath}/projects -d ${ipath}/lexicon/domain,${ipath}/lexicon/general -f ${ipath}/test/test.txt
+    python3 $run_path/run.py -i ${ipath}/projects/古诗 -d ${ipath}/lexicon/general -f ${ipath}/test/poetry2.txt
 fi
 
 
