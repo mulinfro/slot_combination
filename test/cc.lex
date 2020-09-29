@@ -35,8 +35,8 @@ atom 等于 = 是|等于|得
 atom 多少 = 多少|几
 atom 算算 = 算一下|算一算|算算
 
-export more_c = [{expr0}, {再操作}, {后缀运算符} ]
-export hcjs = [{expr0}, {二元运算符}, {expr0}, {和差积商}]
+export more_c = [{expr0}, {再操作}, {后缀运算符} ]       
+export hcjs = [{expr0}, {二元运算符}, {expr0}, {和差积商}]  =>   {domain = "计算器", type="和差积商", bin_func, expr_left = "$1", right_op = "$3" }
 export calculator0= {expr0}
 export calculator1=[{expr0}, {知不知道}?, {等于}, {多少}? ]
 export calculator3 = [{算算}, {expr0}]
