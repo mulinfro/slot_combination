@@ -1,13 +1,13 @@
 from syntax_check import Error
 
-def get_list_product(lst_of_lst):
-    ans = [""]
+def get_list_product(lst_of_lst, slot_pos = False):
+    ans = [("", ())]
     for lst in lst_of_lst:
         new_ans = []
-        for e in ans:
+        for e, f in ans:
             for e2 in lst:
-                if e2 == "": new_ans.append(e)
-                else:     new_ans.append( ("%s#%s"%(e, e2)).strip("#") )
+                if e2 == "": new_ans.append((e, f))
+                else:        new_ans.append( (("%s#%s"%(e, e2)).strip("#"), f + (e2,) ))
         ans = new_ans
     return ans
 
@@ -19,7 +19,18 @@ def get_set_product(lst_of_lst):
 
     return list(set(ans))
 
-class Rule_structure():
+
+class ExportRulesInfo():
+
+    def __init__(self):
+        self.ruleid = rid
+        self.out_info = out_info
+
+    def add(self):
+        pass
+
+
+class RuleStructure():
 
     def __init__(self, ast, ac_machine, conf):
         self.ast = ast.ast
@@ -44,11 +55,11 @@ class Rule_structure():
     def get_ele_sign(self, rule):
         tp = rule["tp"]
         if tp == "ATOM":
-            return [ "0" + rule["name"] ]
+            return ["0" + rule["name"]]
         elif tp == "REF":
-            return [ "1" + rule["name"] ]
+            return ["1" + rule["name"]]
         elif tp == "PLUS":
-            return [ "2" + rule["name"] ]
+            return ["2" + rule["name"]]
         elif tp == "RULE":
             return self.get_ele_sign(rule["body"])
         elif tp == "OR":
@@ -74,7 +85,19 @@ class Rule_structure():
         all_signs = []
         for nm, bd in ast.items():
             if bd["tp"] == "EXPORT":
-                ele_sign = self.get_ele_sign(bd["body"])
+                proc = self.export_processer(bd.get("processer", {}))
+                rule = bd["body"]
+                tp = rule["tp"]
+                if tp == "LIST":
+                    t = [ self.get_ele_sign(ele) for ele in rule["body"]]
+                    ele_sign =  get_list_product(t, slot_pos = True)
+                elif tp == "ANGLE":
+                    t = [ self.get_ele_sign(ele) for ele in rule["body"]]
+                    ele_sign =  get_set_product(t, slot_pos = True)
+                else:
+                    ele_sign_parts = self.get_ele_sign(rule_body)
+                    ele_sign = [(e, proc) for e in ele_sign_parts ]
+
                 all_signs.extend(ele_sign)
 
         print("ALL_SIGNS", len(all_signs))
@@ -85,13 +108,16 @@ class Rule_structure():
         all_signs = {}
         for nm in plus:
             sign = self.get_ele_sign(self.ast[nm]["body"])
-            all_signs[nm], _ = self.build_tp_prefixes(sign)
+            all_signs[nm], _, _ = self.build_tp_prefixes(sign)
 
         return all_signs
 
     def build_tp_prefixes(self, rules):
+        export_info = ExportRulesInfo()
         ans, all_tags = {}, set()
-        for r in rules:
+        rule_id = 0
+        for r, proc in rules:
+            rule_id += 1
             eles = r.strip("#").split("#")
             sub_ele = ""
             for ele in eles:
@@ -99,8 +125,9 @@ class Rule_structure():
                 sub_ele += "#" + ele
                 if sub_ele not in ans:
                     ans[sub_ele] = 0
-            ans[sub_ele] = 1
-        return ans, all_tags
+            ans[sub_ele] = rule_id
+            export_info.add(rule_id, proc)
+        return ans, all_tags, export_info
 
 
 class Parse():
