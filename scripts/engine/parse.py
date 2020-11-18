@@ -1,4 +1,5 @@
 from syntax_check import Error
+from build_ac import MatchedGroup
 
 def get_list_product_with_slices(lst_of_lst):
     ans = [("", ())]
@@ -56,19 +57,41 @@ class Signature():
         self.sign = sign
         self.tags = tags
 
+
+from collections import namedtuple
+PlusInfo = namedtuple('PlusInfo', ['plus_name', 'tag_name', 'tag_type'])
+
 class RuleStructure():
 
-    def __init__(self, ast, ac_machine, conf):
-        self.ast = ast.ast
-        self.conf = conf
-        self.plus = ast.plus
+    def __init__(self, ast):
+        self.rules = ast.rule
+        self.plus = self.extract_plus_info(ast)
         self.plus_fingerprint = self.get_plus_sign(ast.plus)
-        rules_sign = self.get_sign(ast.ast)
+        self.rule_conf = {}
+        rules_sign = self.get_sign(ast.rule)
         self.rule_fingerprint, export_tags, self.export_info = self.build_tp_prefixes(rules_sign)
-        self.ac_machine = ac_machine
         self.need_delete_tags = self.get_need_delete_tag(export_tags, ast.atom + ast.word_refs + ast.plus)
-        #print("DELETE_TAG", export_tags, self.need_delete_tags, )
-        #assert "#0poe背诵#0量词#1poe古诗_类别" in self.rule_fingerprint, "ERRR"
+
+    # 好像直接返回bd["tp"]就可以了
+    def get_ast_body(self, node):
+        bd = node["body"]
+        return bd
+        #if bd["tp"] == "VAR":
+        #    return self.rule_graph.ast[bd["name"]]
+        #else:
+        #    return bd
+
+    def extract_plus_info(self, ast):
+        pluses = []
+        for ap_name in ast.plus:
+            node = self.ast.rule[ap_name]
+            bd = self.get_ast_body(node)
+            self.rule_conf[ap_name] = node.get("config", {})
+            pinfo = PlusInfo(plus_name = ap_name, tag_name = bd["name"], tag_type = bd["tp"])
+            pluses.append(pinfo)
+
+        return pluses
+
 
     def get_need_delete_tag(self, export_tags, all_tags):
         ans = set()
@@ -105,11 +128,11 @@ class RuleStructure():
             return get_set_product(t)
         elif tp == "VAR":
             name = rule["name"]
-            return self.get_ele_sign(self.ast[name])
+            return self.get_ele_sign(self.rules[name])
 
-    def get_sign(self, ast):
+    def get_sign(self, rules):
         all_signs = []
-        for nm, bd in ast.items():
+        for nm, bd in rules.items():
             if bd["tp"] == "EXPORT":
                 proc = self.export_processer(bd.get("processer", {}))
                 rule = bd["body"]
@@ -126,14 +149,12 @@ class RuleStructure():
 
                 all_signs.append((ele_sign, proc))
 
-        print("ALL_SIGNS", len(all_signs))
-        #print(all_signs)
         return all_signs
                 
     def get_plus_sign(self, plus):
         all_signs = {}
         for nm in plus:
-            signparts = self.get_ele_sign(self.ast[nm]["body"])
+            signparts = self.get_ele_sign(self.rules[nm]["body"])
             sign = [(e, (e,)) for e in signparts]
             all_signs[nm], _, _ = self.build_tp_prefixes([(sign, None)])
 
@@ -162,8 +183,10 @@ class RuleStructure():
 
 class Parse():
 
-    def __init__(self, rule_graph):
+    def __init__(self, rule_graph, ac_machine, conf):
         self.rule_graph = rule_graph
+        self.conf = conf
+        self.ac_machine = ac_machine
 
     def score(self, _m):
         matched_length = len(_m)
@@ -190,15 +213,13 @@ class Parse():
     def select(self, matched, dialog):
         mm = [ self.get_match_group(tp, _m, dialog) for tp, _m in matched]
         mm.sort(key = lambda x: (-x[1], x[2]))
-        #print("MM", len(mm))
         return mm[0] if mm else None
 
     def basic_set(self, dialog):
         self.dialog = dialog
-        self.AM = self.rule_graph.ac_machine.match(dialog)
-        #print("AM 0", len(self.AM.matched))
+        self.AM = self.ac_machine.match(dialog)
         self.plus_preprocess()
-        self.AM.matched.sort(key = lambda x: (x[0], -x[1]) )
+        self.AM.matched.sort_tags()
         if len(self.rule_graph.need_delete_tags) > 0:
             self.AM.delete_tag(self.rule_graph.need_delete_tags)
         self.AM.build_word_next_idx(len(dialog))
@@ -212,21 +233,20 @@ class Parse():
 
     def search_match(self, dialog):
         self.basic_set(dialog)
-        conf = self.rule_graph.conf.search
+        conf = self.conf.search
         matched_eles = self._search_match(self.rule_graph.rule_fingerprint, conf)
         return self.select(matched_eles, dialog)
         
     def _search_match(self, fingerprint, conf):
         self.AM.reset()
         all_matched = []
-        #print("fingerprint", len(fingerprint) ) 
         has_seen = set()
         for i in range(len(self.AM.matched)):
             ele = self.AM.iter_init_status(i)
-            for ele_tp in ele[2]:
-                tp = "%s#%s%s"%("", ele[-1], ele_tp)
+            for tag in ele.tags:
+                tp = "%s#%s%s"%("", ele.tag_type, tag)
                 if tp in fingerprint:
-                    head_ele = ((ele[0], ele[1]), )
+                    head_ele = ((ele.start, ele.end), )
                     matched_ans = self._search_match_helper(tp, head_ele, fingerprint, has_seen, conf)
                     if matched_ans:
                         all_matched.extend(matched_ans)
@@ -248,11 +268,11 @@ class Parse():
                 ele = self.AM.get_next()
 
                 # 大于限定距离; break
-                if self.AM.get_word_dist(ele[0]) > conf["max_dist"]:
+                if self.AM.get_word_dist(ele.start) > conf["max_dist"]:
                     break
 
-                for ele_tp in ele[2]:
-                    new_tp = "%s#%s%s"%(tp, ele[-1], ele_tp)
+                for tag in ele.tags:
+                    new_tp = "%s#%s%s"%(tp, ele.tag_type, tag)
                     search_step_fingerprint = "%d&%s"%(self.AM._i, new_tp)
                     if search_step_fingerprint in has_seen: continue
 
@@ -260,7 +280,7 @@ class Parse():
                     if new_tp in fingerprint:
                         #self.AM.accept(ele)
                         #is_accept = True
-                        new_matched_eles = matched_eles + ((ele[0], ele[1]), )
+                        new_matched_eles = matched_eles + ((ele.start, ele.end),)
                         # simple
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
                         #print(ele, new_matched_eles, new_tp)
@@ -275,8 +295,8 @@ class Parse():
                                 return best_ans
                             """
 
-                        stack.append((new_tp, (self.AM._i, ele[1]), new_matched_eles ) )
-                    elif conf["no_skip_atom"] and ele[-1] in "0":
+                        stack.append((new_tp, (self.AM._i, ele.end), new_matched_eles ) )
+                    elif conf["no_skip_atom"] and ele.tag_type in "0":
                         break_flag = True
                         # 中间有atom， 且不准跨越atom
                         break
@@ -295,10 +315,10 @@ class Parse():
         #print("fingerprint", len(fingerprint) ) 
         for i in range(len(self.AM.matched)):
             ele = self.AM.iter_init_status(i)
-            for ele_tp in ele[2]:
-                tp = "%s#%s%s"%("", ele[-1], ele_tp)
+            for tag in ele.tags:
+                tp = "%s#%s%s"%("", ele.tag_type, tag)
                 if tp in fingerprint:
-                    head_ele = ((ele[0], ele[1]), )
+                    head_ele = ((ele.start, ele.end), )
                     matched_ans = self._greed_match_helper(tp, head_ele, fingerprint, conf)
                     if matched_ans:
                         all_matched.extend(matched_ans)
@@ -321,41 +341,30 @@ class Parse():
                 #if self.get_word_dist(ele[0]) > self.conf.max_match_dist:
                 #    break
 
-                for ele_tp in ele[2]:
-                    new_tp = "%s#%s%s"%(tp, ele[-1], ele_tp)
+                for tag in ele.tags:
+                    new_tp = "%s#%s%s"%(tp, ele.tag_type, tag)
                     if new_tp in fingerprint:
                         self.AM.accept(ele)
                         is_accept = True
-                        new_matched_eles = matched_eles + ((ele[0], ele[1]) , )
+                        new_matched_eles = matched_eles + ((ele.start, ele.end), )
                         # simple
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
                         if fingerprint[new_tp][0] > 0:
-                            best_ans.append( (new_tp,  new_matched_eles) )
-                        stack.append((new_tp, self.AM.save_state(), new_matched_eles ) )
+                            best_ans.append((new_tp,  new_matched_eles))
+                        stack.append((new_tp, self.AM.save_state(), new_matched_eles ))
 
         return best_ans
 
-
-    # 递归实现
-    def max_match_rec(self, tp, matched_eles):
-        pass
-
-
     def plus_preprocess(self):
-        for ap_name in self.rule_graph.plus:
-            node = self.rule_graph.ast[ap_name]
-            bd = self.get_ast_body(node)
-            conf = node.get("config", {})
-            if bd["tp"] == "ATOM":
-                ap_tag = bd["name"]
-                self.atom_plus_preprocess(ap_tag, [ap_name], conf, "keyword")
-            elif  bd["tp"] == "REF":
-                ap_tag = bd["name"]
-                self.atom_plus_preprocess(ap_tag, [ap_name], conf, "slot")
+        for plus_name, tag_name, tag_type in self.rule_graph.plus:
+            conf = self.rule_graph.rule_conf[plus_name]
+            if tag_type == "ATOM":
+                self.atom_plus_preprocess(tag_name, [plus_name], conf, "keyword")
+            elif  tag_type == "REF":
+                self.atom_plus_preprocess(tag_name, [plus_name], conf, "slot")
             else:
-                self.var_plus_preprocess(ap_name, conf)
+                self.var_plus_preprocess(plus_name, conf)
 
-        
     def atom_plus_preprocess(self, ap_tag, tag, conf, tp = "keyword"):
         tag_index = self.AM.word_tag_index
         if ap_tag not in tag_index or len(tag_index[ap_tag]) < conf["min_N"]:
@@ -379,14 +388,14 @@ class Parse():
                 if cnt >= conf["min_N"]:
                     ss_index, _, _ = ids_of_tag[beg_tag_idx]
                     _, se_index, _ = ids_of_tag[pre_tag_idx]
-                    self.AM.matched.append( (ss_index, se_index, tag, "2") )
+                    self.AM.matched.append( MatchedGroup(ss_index, se_index, tag, "2") )
 
                 pre_tag_idx = i
                 beg_tag_idx = i
                 cnt = 1
 
         if cnt >= conf["min_N"]:
-            self.AM.matched.append((ids_of_tag[beg_tag_idx][0], ids_of_tag[pre_tag_idx][1], tag, "2") )
+            self.AM.matched.append(MatchedGroup(ids_of_tag[beg_tag_idx][0], ids_of_tag[pre_tag_idx][1], tag, "2") )
 
     def plus_extract(self, lst, tag, conf):
         ans = []
@@ -403,13 +412,13 @@ class Parse():
                 cnt += 1
             elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ):
                 if cnt >= conf["min_N"]:
-                    ans.append( (lst[b_i][0], lst[p_i][1], tag, "2")  )
+                    ans.append(MatchedGroup(lst[b_i][0], lst[p_i][1], tag, "2")  )
 
                 p_i = b_i =  i
                 cnt = 1
 
         if len(lst) and cnt >= conf["min_N"]:
-            ans.append( (lst[b_i][0], lst[p_i][1], tag, "2")  )
+            ans.append(MatchedGroup(lst[b_i][0], lst[p_i][1], tag, "2")  )
 
         return ans
 
@@ -430,15 +439,6 @@ class Parse():
         figerprint = self.rule_graph.plus_fingerprint[rule_name]
         all_matched = self._greed_match(figerprint, conf)
         all_plus = self.plus_extract(self.merge_eles(all_matched), [rule_name], conf)
-        #print("ALL_PLUS", rule_name,  all_plus, all_matched)
-        #print("LLL###0",  len(self.AM.matched))
         self.AM.matched.extend(all_plus)
-        #print("LLL###1",  len(self.AM.matched))
 
-    def get_ast_body(self, node):
-        bd = node["body"]
-        if bd["tp"] == "VAR":
-            return self.rule_graph.ast[bd["name"]]
-        else:
-            return bd
 

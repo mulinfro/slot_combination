@@ -2,7 +2,6 @@
 from builtin import op_type, op_funcs
 from syntax_check import *
 from stream import stream
-import config
 
 def is_candi_op(tkn, candi):
     return tkn.tp == "OP" and tkn.val in candi
@@ -41,7 +40,7 @@ def skip_tkns(stm, candi):
 def extract_all_atoms(ast):
     slots = {}
     for atom_name in ast.atom:
-        for atom_value in ast.ast[atom_name]["body"]:
+        for atom_value in ast.rule[atom_name]["body"]:
             tag = slots.get(atom_value, [])
             if atom_name not in tag:
                 tag.append(atom_name)
@@ -76,12 +75,11 @@ class AST():
         self.word_refs = []
         self.atom = []
         self.plus = []
-        self.ast = {}
+        self.rule = {}
         self.conf = conf
         self.build_ast(stm)
 
     def build_ast(self, stm):
-        ast = []
         while True:
             newlines(stm)
             if stm.eof(): break
@@ -98,10 +96,10 @@ class AST():
                 self.plus.append(val["name"])
             else:
                 Error("Unexpeted begining token %s"%tkn.val)
-            if val["name"] in self.ast:
+            if val["name"] in self.rule:
                 Error("conflict rule names: " + val["name"])
 
-            self.ast[val["name"]] = val
+            self.rule[val["name"]] = val
 
     def ast_export(self, stm):
         stm.next()
@@ -138,7 +136,7 @@ class AST():
     def get_body_tp(self, body):
         tp = body["tp"] 
         if tp == "VAR":
-            return self.ast[body["name"]]["tp"]
+            return self.rule[body["name"]]["tp"]
         else:
             return tp
 
@@ -192,7 +190,7 @@ class AST():
                 self.word_refs.append(name)
             return {"tp":"REF", "name": name}
         else:
-            if name not in self.ast: Error("Undefined %s"%name)
+            if name not in self.rule: Error("Undefined %s"%name)
             return {"tp":"VAR", "name": name} #self.ast[name]
 
     def ast_try_or_ele(self, stm):

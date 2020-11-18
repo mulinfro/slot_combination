@@ -1,12 +1,19 @@
 import ahocorasick
 
+from collections import namedtuple
+MatchedGroup = namedtuple('MatchedGroup', ['start', 'end', 'tags', 'tag_type'])
+
 class AC_matched():
     def __init__(self, a, b):
         self.matched = a
+        self.sort_tags()
         self.word_tag_index = b
         self.word_next_idx = None
         self._i = 0
         self.accept_endidx = -1
+
+    def sort_tags(self):
+        self.matched.sort(key = lambda x: (x.start, -x.end))
 
     def delete_tag(self, need_delete_tags):
         new_AM = []
@@ -88,6 +95,8 @@ class AC_matched():
     def get_word_dist(self, new_idx):
         return new_idx - self.accept_endidx - 1
 
+
+
 class AC():
     def __init__(self):
         self.keyword_ac = None
@@ -133,7 +142,6 @@ class AC():
         matched = self.match_a_ac(self.keyword_ac, query, "0")
         matched_slot = self.match_a_ac(self.slot_ac, query, "1")
         matched.extend(matched_slot)
-        matched.sort(key = lambda x: (x[0], -x[1]) )
         return AC_matched(matched, self.get_tag_idx_dict(matched))
         
     def match_a_ac(self, A, query, word_tp):
@@ -141,12 +149,12 @@ class AC():
         if A is None: return ans
         for end_index, (tag, key_length) in A.iter(query):
             start_index = end_index - key_length + 1
-            ans.append((start_index, end_index, tag, word_tp))
+            ans.append(MatchedGroup(start_index, end_index, tag, word_tp))
         return ans
 
-    def get_tag_idx_dict(self, key_index):
+    def get_tag_idx_dict(self, matchgroups):
         ans = {}
-        for start_index, end_index, tags, tp in key_index:
+        for start_index, end_index, tags, tp in matchgroups:
             for kk in tags:
                 #if type(kk) is list: print(kk, key, tag)
                 val = ans.get(kk, [])
