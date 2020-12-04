@@ -69,13 +69,22 @@ def get_plus_config(conf, new_conf, tp):
 
     return new_conf
 
+class PostProcess():
+
+    def __init__(self, slots, post):
+        self.slots = slots
+        self.post = post
+        
 class AST():
 
     def __init__(self, stm, conf):
         self.word_refs = []
         self.atom = []
         self.plus = []
-        self.rule = {}
+        self.rule = []
+        self.export = []
+        self.rules_body = {}
+        self.post_info = {}
         self.conf = conf
         self.build_ast(stm)
 
@@ -86,8 +95,10 @@ class AST():
             tkn = stm.peek()
             if tkn.tp == 'EXPORT':
                 val = self.ast_export(stm)
+                self.export.append(val["name"])
             elif tkn.tp == 'RULE':
                 val = self.ast_rule(stm)
+                self.rule.append(val["name"])
             elif tkn.tp == 'ATOM':
                 val = self.ast_atom(stm)
                 self.atom.append(val["name"])
@@ -99,7 +110,12 @@ class AST():
             if val["name"] in self.rule:
                 Error("conflict rule names: " + val["name"])
 
-            self.rule[val["name"]] = val
+            pp = PostProcess(val.get("config", {}), val.get("processer", {}))
+            if "config" in val: val.pop("config")
+            if "processer" in val: val.pop("processer")
+
+            self.rules_body[val["name"]] = val
+            self.post_info[val["name"]]  = pp
 
     def ast_export(self, stm):
         stm.next()

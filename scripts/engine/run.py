@@ -20,31 +20,33 @@ def read_lex(lex_file):
     return ori_in
 
 def run(lex_file, in_str, in_file, dict_dir):
-
     _config = config.Config()
     ori_in = read_lex(lex_file)
     script = char_stream(ori_in)
     tokens = token_list(script).tokens
-    ast_tree = ast.AST(stream(tokens), _config)
+    ast_obj = ast.AST(stream(tokens), _config)
 
-    print(ast_tree.atom)
-    print(ast_tree.plus)
+    print(ast_obj.atom)
+    print(ast_obj.plus)
     """
-    for k,m in ast_tree.ast.items():
+    for k,m in ast_obj.ast.items():
         print(k, m)
     """
 
+    # 词典文件目录列表， 逗号分开
     all_slot_entity_files = []
     if dict_dir:
         dict_dirs = dict_dir.split(",")
         for dir_path in dict_dirs:
             all_slot_entity_files.extend(glob.glob(dir_path + "/*.txt"))
     print(all_slot_entity_files)
-    keywords = ast.extract_all_atoms(ast_tree)
+
+    # 规则中的关键词
+    keywords = ast.extract_all_atoms(ast_obj)
     ac_machine = build_ac.AC()
     ac_machine.make(keywords, all_slot_entity_files)
 
-    rule_graph = parse.RuleStructure(ast_tree, ac_machine)
+    rule_graph = parse.RuleStructure(ast_obj, ac_machine)
     #print("PLUS_FINGERPRINT", rule_graph.plus_fingerprint)
     parser = parse.Parse(rule_graph, ac_machine, _config)
     time_start=time.time()

@@ -47,7 +47,7 @@ class ExportRulesInfo():
         self.ruleid = rid
         self.out_info = out_info
 
-    def add(self):
+    def add(self, rid, info):
         pass
 
 
@@ -59,39 +59,52 @@ class Signature():
 
 
 from collections import namedtuple
-PlusInfo = namedtuple('PlusInfo', ['plus_name', 'tag_name', 'tag_type'])
+TNode = namedtuple('TNode', ['name', 'slices'])
+
+class TrieNodeInfo():
+    def __init__(self):
+        self.match_list = []
+        self.leafFlag = False
+
+    def isLeaf(self):
+        return leafFlag
+
+    def setLeaf(self, flag = True):
+        self.leafFlag =  flag
+
+    def addRule(self, name, slices):
+        tn = TNode(name = name, slices = slices)
+        self.setLeaf()
+        self.match_list.append(tn)
+
+# Trie implement by hashtable
+class RuleTrie():
+    def __init__(self, export_trie, plus_trie, to_dele_tags, post_info, conf):
+        self.export_trie = export_trie
+        self.plus_trie = plus_trie
+        self.need_delete_tags = to_dele_tags
+        self.rule_conf = conf
+        sefl.post_info = post_info
+
 
 class RuleStructure():
 
     def __init__(self, ast):
-        self.rules = ast.rule
-        self.plus = self.extract_plus_info(ast)
-        self.plus_fingerprint = self.get_plus_sign(ast.plus)
+        self.ast = ast
+        self.rules_body = ast.rules_body
         self.rule_conf = {}
-        rules_sign = self.get_sign(ast.rule)
-        self.rule_fingerprint, export_tags, self.export_info = self.build_tp_prefixes(rules_sign)
-        self.need_delete_tags = self.get_need_delete_tag(export_tags, ast.atom + ast.word_refs + ast.plus)
+        self.rule_id = 0
 
-    # 好像直接返回bd["tp"]就可以了
-    def get_ast_body(self, node):
-        bd = node["body"]
-        return bd
-        #if bd["tp"] == "VAR":
-        #    return self.rule_graph.ast[bd["name"]]
-        #else:
-        #    return bd
+    def build_trie(self, names):
+        rules_sign = self.get_sign(names)
+        fingerprint, tags = self.build_tp_prefixes(rules_sign)
+        return fingerprint, tags
 
-    def extract_plus_info(self, ast):
-        pluses = []
-        for ap_name in ast.plus:
-            node = self.ast.rule[ap_name]
-            bd = self.get_ast_body(node)
-            self.rule_conf[ap_name] = node.get("config", {})
-            pinfo = PlusInfo(plus_name = ap_name, tag_name = bd["name"], tag_type = bd["tp"])
-            pluses.append(pinfo)
-
-        return pluses
-
+    def build(self):
+        plus_trie, plus_tags = self.build_trie(selt.ast.plus)
+        export_trie, export_tags = self.build_trie(selt.ast.export)
+        need_delete_tags = self.get_need_delete_tag(export_tags, self.ast.atom + self.ast.word_refs + self.ast.plus)
+        return RuleTrie(export_trie, plus_trie, need_delete_tags, self.ast.post_info, self.rule_conf)
 
     def get_need_delete_tag(self, export_tags, all_tags):
         ans = set()
@@ -130,61 +143,49 @@ class RuleStructure():
             name = rule["name"]
             return self.get_ele_sign(self.rules[name])
 
-    def get_sign(self, rules):
+    def get_sign(self, names):
         all_signs = []
-        for nm, bd in rules.items():
-            if bd["tp"] == "EXPORT":
-                proc = self.export_processer(bd.get("processer", {}))
-                rule = bd["body"]
-                tp = rule["tp"]
-                if tp == "LIST":
-                    t = [ self.get_ele_sign(ele) for ele in rule["body"]]
-                    ele_sign =  get_list_product_with_slices(t)
-                elif tp == "ANGLE":
-                    t = [ self.get_ele_sign(ele) for ele in rule["body"]]
-                    ele_sign =  get_set_product_with_slices(t)
-                else:
-                    ele_sign_parts = self.get_ele_sign(rule_body)
-                    ele_sign = [(e, (e,)) for e in ele_sign_parts ]
+        for nm in names:
+            bd = self.rules_body[nm]
+            rule = bd["body"]
+            tp = rule["tp"]
+            if tp == "LIST":
+                t = [ self.get_ele_sign(ele) for ele in rule["body"]]
+                ele_sign =  get_list_product_with_slices(t)
+            elif tp == "ANGLE":
+                t = [ self.get_ele_sign(ele) for ele in rule["body"]]
+                ele_sign =  get_set_product_with_slices(t)
+            else:
+                ele_sign_parts = self.get_ele_sign(rule_body)
+                ele_sign = [(e, (e,)) for e in ele_sign_parts ]
 
-                all_signs.append((ele_sign, proc))
+            all_signs.append((ele_sign, nm))
 
         return all_signs
                 
-    def get_plus_sign(self, plus):
-        all_signs = {}
-        for nm in plus:
-            signparts = self.get_ele_sign(self.rules[nm]["body"])
-            sign = [(e, (e,)) for e in signparts]
-            all_signs[nm], _, _ = self.build_tp_prefixes([(sign, None)])
-
-        return all_signs
 
     def build_tp_prefixes(self, rules):
-        export_info = ExportRulesInfo()
         ans, all_tags = {}, set()
-        rule_id = 0
-        for rs, proc in rules:
+        for rs, nm in rules:
             for r, slices in rs:
-                rule_id += 1
+                self.rule_id += 1
                 eles = r.strip("#").split("#")
                 sub_ele = ""
                 for ele in eles:
                     all_tags.add(ele.lstrip("012345"))
                     sub_ele += "#" + ele
                     if sub_ele not in ans:
-                        ans[sub_ele] = (0, slices)
+                        ans[sub_ele] = TrieNodeInfo()
                 # 多个rule有相同的tag序列，会覆盖
-                ans[sub_ele] = (rule_id, slices)
-                export_info.add(rule_id, proc)
+                ans[sub_ele].add(nm, slices)
 
-        return ans, all_tags, export_info
+        return ans, all_tags
 
 
 class Parse():
 
-    def __init__(self, rule_graph, ac_machine, conf):
-        self.rule_graph = rule_graph
+    def __init__(self, rule_trie, ac_machine, conf):
+        self.rule_trie = rule_trie
         self.conf = conf
         self.ac_machine = ac_machine
 
@@ -220,21 +221,21 @@ class Parse():
         self.AM = self.ac_machine.match(dialog)
         self.plus_preprocess()
         self.AM.matched.sort_tags()
-        if len(self.rule_graph.need_delete_tags) > 0:
-            self.AM.delete_tag(self.rule_graph.need_delete_tags)
+        if len(self.rule_trie.need_delete_tags) > 0:
+            self.AM.delete_tag(self.rule_trie.need_delete_tags)
         self.AM.build_word_next_idx(len(dialog))
         #print("AM FINAL", len(self.AM.matched), self.AM.matched)
 
     def max_match(self, dialog):
         self.basic_set(dialog)
         #print("begining match ...")
-        matched_eles = self._greed_match(self.rule_graph.rule_fingerprint, {})
+        matched_eles = self._greed_match(self.rule_trie.export_trie, {})
         return self.select(matched_eles, dialog)
 
     def search_match(self, dialog):
         self.basic_set(dialog)
         conf = self.conf.search
-        matched_eles = self._search_match(self.rule_graph.rule_fingerprint, conf)
+        matched_eles = self._search_match(self.rule_trie.export_trie, conf)
         return self.select(matched_eles, dialog)
         
     def _search_match(self, fingerprint, conf):
@@ -356,8 +357,8 @@ class Parse():
         return best_ans
 
     def plus_preprocess(self):
-        for plus_name, tag_name, tag_type in self.rule_graph.plus:
-            conf = self.rule_graph.rule_conf[plus_name]
+        for plus_name, tag_name, tag_type in self.rule_trie.plus:
+            conf = self.rule_trie.rule_conf[plus_name]
             if tag_type == "ATOM":
                 self.atom_plus_preprocess(tag_name, [plus_name], conf, "keyword")
             elif  tag_type == "REF":
@@ -436,7 +437,7 @@ class Parse():
         return (ele[0], e_idx, ele[2] + b_idx - ele[1] -1)
 
     def var_plus_preprocess(self, rule_name, conf):
-        figerprint = self.rule_graph.plus_fingerprint[rule_name]
+        figerprint = self.rule_trie.plus_trie[rule_name]
         all_matched = self._greed_match(figerprint, conf)
         all_plus = self.plus_extract(self.merge_eles(all_matched), [rule_name], conf)
         self.AM.matched.extend(all_plus)
