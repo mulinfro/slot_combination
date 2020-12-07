@@ -71,9 +71,9 @@ def get_plus_config(conf, new_conf, tp):
 
 class PostProcess():
 
-    def __init__(self, slots, post):
+    def __init__(self, slots, post_func):
         self.slots = slots
-        self.post = post
+        self.post_func = post
         
 class AST():
 
@@ -110,33 +110,27 @@ class AST():
             if val["name"] in self.rule:
                 Error("conflict rule names: " + val["name"])
 
-            pp = PostProcess(val.get("config", {}), val.get("processer", {}))
-            if "config" in val: val.pop("config")
-            if "processer" in val: val.pop("processer")
+            pp = PostProcess(val.get("slots", {}), val.get("post_func", {}))
+            if "slots" in val: val.pop("slots")
+            if "post_func" in val: val.pop("post_func")
 
             self.rules_body[val["name"]] = val
             self.post_info[val["name"]]  = pp
 
     def ast_export(self, stm):
-        stm.next()
-        rule = self.ast_rule_helper(stm)
-        config, processer = self.ast_post(stm)
-        syntax_cond_assert(is_rule_end(stm, True), "acc %s; expected rule end"%stm.peek().val)
-
-        ans = {"tp": "EXPORT", "name": rule["rule_name"], "body": rule["body"] }
-        if config: ans["config"] = config
-        if processer: ans["processer"] = processer
+        ans = self.ast_rule(stm)
+        ans["tp"] = "EXPORT"
         return ans
 
     def ast_rule(self, stm):
         stm.next()
         rule = self.ast_rule_helper(stm)
-        config, processer = self.ast_post(stm)
+        post_func, slots = self.ast_post(stm)
         syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
 
         ans = {"tp": "RULE", "name":rule["rule_name"], "body": rule["body"]}
-        if config: ans["config"] = config
-        if processer: ans["processer"] = processer
+        if post_func: ans["post_func"] = post_func
+        if slots:     ans["slots"] = slots
         return ans
 
     def ast_atom(self, stm):
@@ -161,11 +155,12 @@ class AST():
         rule_name = stm.next().val
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
         body = self.ast_rule_body(stm)
-        config, processer = self.ast_post(stm)
+        post_func, slots = self.ast_post(stm)
+        #config = get_plus_config(self.conf, config, self.get_body_tp(body))
+
         ans = {"tp": "PLUS", "name":rule_name, "body": body }
-        config = get_plus_config(self.conf, config, self.get_body_tp(body))
-        if config: ans["config"] = config
-        if processer: ans["processer"] = processer
+        if post_func: ans["post_func"] = post_func
+        if slots:     ans["slots"] = slots
         return ans
         
     def ast_rule_helper(self, stm):
@@ -268,7 +263,7 @@ class AST():
         if tkn.tp == "STRING":
             return {"tp":"STRING", "val": tkn.val }
         elif tkn.tp == "NUM":
-            return {"tp":"NUM", "val": tkn.val }
+            return {"tp":"NUM", "val": str(tkn.val) }
         elif tkn == ("OP", "$"):
             t = stm.next()
             syntax_assert(t, "NUM", "expected num")
@@ -276,23 +271,31 @@ class AST():
         else:
             Error("processer error")
 
+    def get_processer_paras(self, stm):
+        paras = []
+        while not stm.eof():
+            p = self.ast_processer_para(stm)
+            paras.append(p)
+            if not stm.eof():
+                syntax_assert(stm.next(), ("SEP", "COMMA"), "")
+
+        return paras
+
     def ast_processer(self, stm):
         if stm.peek().tp == "STR":
             func = stm.next().val
             if not stm.eof() and stm.peek().tp == "PARN":
                 p_stm = stream(stm.next().val)
-                paras = []
-                while not p_stm.eof():
-                    p = self.ast_processer_para(p_stm)
-                    paras.append(p)
-                    if not p_stm.eof():
-                        syntax_assert(p_stm.next(), ("SEP", "COMMA"), "")
-
+                paras = self.get_processer_paras(p_stm)
                 return {"tp": "FUNC", "func": func, "paras": paras}
             return {"tp": "FUNC", "func": func}
         else:
             return self.ast_processer_para(stm)
 
+    """
+        1. intent = "first", slot_int = 1, slot = $1
+        2. @post($1, 2)
+    """
     def ast_post(self, stm):
         if not stm.eof() and stm.peek().val == "=>":
             stm.next()
@@ -300,28 +303,28 @@ class AST():
             syntax_assert(tkn, "DICT", "")
 
             nstm = stream(tkn.val)
-            config, processer = {}, {}
+            post_func, slots = {}, {}
             while not nstm.eof():
                 tkn = nstm.next()
                 if tkn == ("OP", "@"):
                     key = nstm.next()
                     syntax_assert(key, "STR", "")
-                    val = None
-                    if not nstm.eof() and nstm.peek() == ("OP", "="):
-                        nstm.next()
-                        val = self.ast_processer_para(nstm)["val"]
-                    config[key.val] = val
+                    paras = []
+                    if not nstm.eof() and nstm.peek().tp == "PARN":
+                        p_stm = stream(nstm.next().val)
+                        paras = self.get_processer_paras(p_stm)
+                    post_func[key.val] = {"tp": "FUNC", "paras": paras}
                 else:
                     syntax_assert(tkn, "STR", "")
                     syntax_assert(nstm.next(), ("OP", "="), "")
-                    val = self.ast_processer(nstm)
-                    config[key.val] = val
+                    val = self.ast_processer_para(nstm)["val"]
+                    slots[tkn.val] = val
 
                 if not nstm.eof():
                     syntax_assert(nstm.next(), ("SEP", "COMMA"), "")
 
 
-            return config, processer
+            return post_func, slots
             
         return None, None
 

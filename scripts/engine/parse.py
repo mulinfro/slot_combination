@@ -239,7 +239,7 @@ class Parse():
         if len(mm) > 0:
             matched = []
             for name, slices in mm[0][4]:
-                slot_indexes = self.rule_trie.post_info[name].slot_indexes
+                slot_indexes = self.rule_trie.post_info[name].slots
                 slots = extract_slots(slot_indexes, slices, mm[0][3])
                 matched.append((mm[0], name, slots))
             return matched
