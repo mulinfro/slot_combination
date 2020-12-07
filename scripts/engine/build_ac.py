@@ -1,7 +1,7 @@
 import ahocorasick
 
 from collections import namedtuple
-MatchedGroup = namedtuple('MatchedGroup', ['start', 'end', 'tags', 'tag_type'])
+AcMatchedGroup = namedtuple('AcMatchedGroup', ['start', 'end', 'tags', 'tag_type'])
 
 class AC_matched():
     def __init__(self, a, b):
@@ -149,7 +149,7 @@ class AC():
         if A is None: return ans
         for end_index, (tag, key_length) in A.iter(query):
             start_index = end_index - key_length + 1
-            ans.append(MatchedGroup(start_index, end_index, tag, word_tp))
+            ans.append(AcMatchedGroup(start_index, end_index, tag, word_tp))
         return ans
 
     def get_tag_idx_dict(self, matchgroups):

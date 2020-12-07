@@ -1,5 +1,9 @@
 from syntax_check import Error
-from build_ac import MatchedGroup
+from build_ac import AcMatchedGroup
+
+from collections import namedtuple
+
+RuleMatched = namedtuple('RuleMatched', ['tagkey', 'fragments', 'tnodes'])
 
 def get_list_product_with_slices(lst_of_lst):
     ans = [("", ())]
@@ -8,7 +12,7 @@ def get_list_product_with_slices(lst_of_lst):
         for e, f in ans:
             for e2 in lst:
                 if e2 == "": new_ans.append((e, f))
-                else:        new_ans.append( (("%s#%s"%(e, e2)).strip("#"), f + (e2,) ))
+                else:        new_ans.append((("%s#%s"%(e, e2)).strip("#"), f + (e2,) ))
         ans = new_ans
     return ans
 
@@ -41,6 +45,10 @@ def get_set_product_with_slices(lst_of_lst):
     return list(set(ans))
 
 
+def join_tuple(lst, idx):
+    t = [e[idx] for e in lst]
+    return "".join(t)
+
 class ExportRulesInfo():
 
     def __init__(self):
@@ -51,14 +59,6 @@ class ExportRulesInfo():
         pass
 
 
-class Signature():
-
-    def __init__(self, sign, tags):
-        self.sign = sign
-        self.tags = tags
-
-
-from collections import namedtuple
 TNode = namedtuple('TNode', ['name', 'slices'])
 
 class TrieNodeInfo():
@@ -79,9 +79,9 @@ class TrieNodeInfo():
 
 # Trie implement by hashtable
 class RuleTrie():
-    def __init__(self, export_trie, plus_trie, to_dele_tags, post_info, conf):
+    def __init__(self, export_trie, plus_tries, to_dele_tags, post_info, conf):
         self.export_trie = export_trie
-        self.plus_trie = plus_trie
+        self.plus_tries = plus_tries
         self.need_delete_tags = to_dele_tags
         self.rule_conf = conf
         sefl.post_info = post_info
@@ -101,10 +101,14 @@ class RuleStructure():
         return fingerprint, tags
 
     def build(self):
-        plus_trie, plus_tags = self.build_trie(selt.ast.plus)
+        plus_tries = []
+        for p in self.ast.plus:
+            ptrie, _ = self.build_trie(p)
+            plus_tries.append(ptrie)
+
         export_trie, export_tags = self.build_trie(selt.ast.export)
         need_delete_tags = self.get_need_delete_tag(export_tags, self.ast.atom + self.ast.word_refs + self.ast.plus)
-        return RuleTrie(export_trie, plus_trie, need_delete_tags, self.ast.post_info, self.rule_conf)
+        return RuleTrie(export_trie, plus_tries, need_delete_tags, self.ast.post_info, self.rule_conf)
 
     def get_need_delete_tag(self, export_tags, all_tags):
         ans = set()
@@ -197,24 +201,48 @@ class Parse():
         miss_length = _m[-1][1] - _m[0][0] + 1 - matched_length
         return (matched_length, miss_length)
 
-    def get_match_group(self, tp, _m, dialog):
-        eles = tp[1:].split("#")
-        sv = self.score(_m)
-        assert len(eles) == len(_m), "Need match"
-        ans = []
-        for i in range(len(_m)):
-            b_i, e_i = _m[i][0], _m[i][1] + 1
-            ans.append( (dialog[b_i: e_i], eles[i]))
+    def get_match_group(self, m, dialog):
+        eles = m.tagkey[1:].split("#")
+        sv = self.score(m.fragments)
+        assert len(eles) == len(m.fragments), "Need match"
+        frags = []
+        for i, idx in enumerate(m.fragments):
+            bi, ei = idx[0], idx[1] + 1
+            frags.append((dialog[bi: ei], eles[i]))
 
-        m_d = dialog[_m[0][0]: _m[-1][1]+1]
+        m_d = dialog[m.fragments[0][0]: m.fragments[-1][1]+1]
 
-        return (m_d, sv[0]/len(dialog), sv[1]/sv[0], ans)
+        return (m_d, sv[0]/len(dialog), sv[1]/sv[0], frags, m.tnodes)
 
+
+    def extract_slots(self, slot_indexes, slices, matched_frags):
+        if not slot_indexes:  return {}
+        pre = 0
+        idx_slot_map = {}
+        for i in range(len(slices)):
+            slot_val = join_tuple(matched_frags[pre: pre + slices[i]], 0)
+            pre += slices[i]
+            idx_slot_map[i] = slot_val
+
+        ex_slots = {}
+        for slot_name, idx in slot_indexes.items():
+            if type(idx) == int:
+                ex_slots[slot_name] = idx_slot_map[idx]
+            else:
+                ex_slots[slot_name] = idx
+
+        return ex_slots
 
     def select(self, matched, dialog):
-        mm = [ self.get_match_group(tp, _m, dialog) for tp, _m in matched]
+        mm = [ self.get_match_group(m, dialog) for m in matched]
         mm.sort(key = lambda x: (-x[1], x[2]))
-        return mm[0] if mm else None
+        if len(mm) > 0:
+            matched = []
+            for name, slices in mm[0][4]:
+                slot_indexes = self.rule_trie.post_info[name].slot_indexes
+                slots = extract_slots(slot_indexes, slices, mm[0][3])
+                matched.append((mm[0], name, slots))
+            return matched
 
     def basic_set(self, dialog):
         self.dialog = dialog
@@ -251,8 +279,8 @@ class Parse():
                     matched_ans = self._search_match_helper(tp, head_ele, fingerprint, has_seen, conf)
                     if matched_ans:
                         all_matched.extend(matched_ans)
-                    elif fingerprint[tp][0] > 0:
-                        all_matched.append((tp, head_ele ))
+                    elif fingerprint[tp].isLeaf:
+                        all_matched.append(RuleMatched(tp, head_ele, fingerprint[tp].match_list))
 
         return all_matched
 
@@ -285,8 +313,8 @@ class Parse():
                         # simple
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
                         #print(ele, new_matched_eles, new_tp)
-                        if fingerprint[new_tp][0] > 0:
-                            best_ans.append( (new_tp,  new_matched_eles) )
+                        if fingerprint[new_tp].isLeaf:
+                            best_ans.append(RuleMatched(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
                             # 到达最后一个且匹配到就没要再搜索下去
                             #print(ele, new_matched_eles)
                             """
@@ -323,8 +351,8 @@ class Parse():
                     matched_ans = self._greed_match_helper(tp, head_ele, fingerprint, conf)
                     if matched_ans:
                         all_matched.extend(matched_ans)
-                    elif fingerprint[tp][0] > 0:
-                        all_matched.append((tp, head_ele ))
+                    elif fingerprint[tp].isLeaf:
+                        all_matched.append(RuleMatched(tp, head_ele, fingerprint[tp].match_list))
 
         return all_matched
 
@@ -350,13 +378,65 @@ class Parse():
                         new_matched_eles = matched_eles + ((ele.start, ele.end), )
                         # simple
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
-                        if fingerprint[new_tp][0] > 0:
-                            best_ans.append((new_tp,  new_matched_eles))
+                        if fingerprint[new_tp].isLeaf:
+                            best_ans.append(RuleMatched(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
                         stack.append((new_tp, self.AM.save_state(), new_matched_eles ))
 
         return best_ans
 
     def plus_preprocess(self):
+        for trie in self.rule_trie.plus_tries:
+            conf = self.rule_trie.rule_conf[plus_name]
+            all_matched = self._greed_match(trie, conf)
+            matched_items, tags = self.merge_eles(all_matched)
+            all_plus = self.plus_extract(matched_items, [tags[0].name], conf)
+            self.AM.matched.extend(all_plus)
+
+    def plus_extract(self, lst, tag, conf):
+        ans = []
+        p_i = b_i = 0
+        cnt = 1
+        for i in range(1, len(lst)):
+            start, end, _ = lst[i]
+            pre_end= lst[p_i][1]
+            if end <= pre_end: continue
+
+            m_dist = start - pre_end
+            if m_dist > 0 and m_dist <= conf["max_dist"] + 1:
+                p_i = i
+                cnt += 1
+            elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ):
+                if cnt >= conf["min_N"]:
+                    ans.append(AcMatchedGroup(lst[b_i][0], lst[p_i][1], tag, "2")  )
+
+                p_i = b_i =  i
+                cnt = 1
+
+        if len(lst) and cnt >= conf["min_N"]:
+            ans.append(AcMatchedGroup(lst[b_i][0], lst[p_i][1], tag, "2")  )
+
+        return ans
+
+    def merge_eles(self, lst):
+        # new_tp,  new_matched_eles(), match_list
+        ans = []
+        match_list = []
+        for tp, idxes, ml in lst:
+            match_list = ml
+            t = 0
+            for b,e in idxes:
+                t += b-e +1
+            ans.append( (idxes[0][0], idxes[-1][1], idxes[-1][1] - idxes[0][0] + 1 - t ))
+
+        return ans, match_list
+
+    def merge_ele(self, ele, b_idx, e_idx):
+        return (ele[0], e_idx, ele[2] + b_idx - ele[1] -1)
+
+    ### plus preprocess
+
+
+    def plus_preprocess_bak(self):
         for plus_name, tag_name, tag_type in self.rule_trie.plus:
             conf = self.rule_trie.rule_conf[plus_name]
             if tag_type == "ATOM":
@@ -389,57 +469,12 @@ class Parse():
                 if cnt >= conf["min_N"]:
                     ss_index, _, _ = ids_of_tag[beg_tag_idx]
                     _, se_index, _ = ids_of_tag[pre_tag_idx]
-                    self.AM.matched.append( MatchedGroup(ss_index, se_index, tag, "2") )
+                    self.AM.matched.append(AcMatchedGroup(ss_index, se_index, tag, "2") )
 
                 pre_tag_idx = i
                 beg_tag_idx = i
                 cnt = 1
 
         if cnt >= conf["min_N"]:
-            self.AM.matched.append(MatchedGroup(ids_of_tag[beg_tag_idx][0], ids_of_tag[pre_tag_idx][1], tag, "2") )
-
-    def plus_extract(self, lst, tag, conf):
-        ans = []
-        p_i = b_i = 0
-        cnt = 1
-        for i in range(1, len(lst)):
-            start, end, _ = lst[i]
-            pre_end= lst[p_i][1]
-            if end <= pre_end: continue
-
-            m_dist = start - pre_end
-            if m_dist > 0 and m_dist <= conf["max_dist"] + 1:
-                p_i = i
-                cnt += 1
-            elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ):
-                if cnt >= conf["min_N"]:
-                    ans.append(MatchedGroup(lst[b_i][0], lst[p_i][1], tag, "2")  )
-
-                p_i = b_i =  i
-                cnt = 1
-
-        if len(lst) and cnt >= conf["min_N"]:
-            ans.append(MatchedGroup(lst[b_i][0], lst[p_i][1], tag, "2")  )
-
-        return ans
-
-    def merge_eles(self, lst):
-        ans = []
-        for tp, idxes in lst:
-            t = 0
-            for b,e in idxes:
-                t += b-e +1
-            ans.append( (idxes[0][0], idxes[-1][1], idxes[-1][1] - idxes[0][0] + 1 - t ))
-
-        return ans
-
-    def merge_ele(self, ele, b_idx, e_idx):
-        return (ele[0], e_idx, ele[2] + b_idx - ele[1] -1)
-
-    def var_plus_preprocess(self, rule_name, conf):
-        figerprint = self.rule_trie.plus_trie[rule_name]
-        all_matched = self._greed_match(figerprint, conf)
-        all_plus = self.plus_extract(self.merge_eles(all_matched), [rule_name], conf)
-        self.AM.matched.extend(all_plus)
-
+            self.AM.matched.append(AcMatchedGroup(ids_of_tag[beg_tag_idx][0], ids_of_tag[pre_tag_idx][1], tag, "2") )
 
