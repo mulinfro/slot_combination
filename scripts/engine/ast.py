@@ -107,7 +107,7 @@ class AST():
                 self.plus.append(val["name"])
             else:
                 Error("Unexpeted begining token %s"%tkn.val)
-            if val["name"] in self.rule:
+            if val["name"] in self.rules_body:
                 Error("conflict rule names: " + val["name"])
 
             pp = PostProcess(val.get("slots", {}), val.get("post_func", {}))

@@ -11,14 +11,16 @@ def count_tag_num(e):
     else:     t = e.count("#") + 1
     return t
 
-def get_list_product_with_slices(lst_of_lst):
-    ans = [("", ())]
+def get_list_product_with_slices(lst_of_lst, perm = None):
+    ans = [("", (), perm)]
     for lst in lst_of_lst:
         new_ans = []
-        for e, f in ans:
+        for e, f, _ in ans:
             for e2 in lst:
-                if e2 == "": new_ans.append((e, f))
-                else:        new_ans.append((("%s#%s"%(e, e2)).strip("#"), f + (count_tag_num(e2),) ))
+                if e2 == "":
+                    new_ans.append((e, f + (0,), perm))
+                else:
+                    new_ans.append((("%s#%s"%(e, e2)).strip("#"), f + (count_tag_num(e2),), perm))
         ans = new_ans
     return ans
 
@@ -34,6 +36,12 @@ def get_list_product(lst_of_lst):
         ans = new_ans
     return ans
 
+def get_list_permutation(perm, lst):
+    new_lst = []
+    for p in perm:
+        new_lst.append(lst[p - 1])
+    return new_lst
+
 def get_set_product(lst_of_lst):
     from itertools import permutations
     ans = []
@@ -45,8 +53,10 @@ def get_set_product(lst_of_lst):
 def get_set_product_with_slices(lst_of_lst):
     from itertools import permutations
     ans = []
-    for p_lst in permutations(lst_of_lst):
-        ans.extend(get_list_product_with_slices(p_lst))
+    enum = list(range(1, len(lst_of_lst) + 1))
+    for perm in permutations(enum):
+        p_lst = get_list_permutation(perm, lst_of_lst)
+        ans.extend(get_list_product_with_slices(p_lst, perm=perm))
 
     return list(set(ans))
 
@@ -65,7 +75,7 @@ class ExportRulesInfo():
         pass
 
 
-TNode = namedtuple('TNode', ['name', 'slices'])
+TNode = namedtuple('TNode', ['name', 'slices', 'permutation'])
 
 class TrieNodeInfo():
     def __init__(self):
@@ -78,8 +88,8 @@ class TrieNodeInfo():
     def setLeaf(self, flag = True):
         self.leafFlag =  flag
 
-    def addRule(self, name, slices):
-        tn = TNode(name = name, slices = slices)
+    def addRule(self, name, slices, permutation):
+        tn = TNode(name = name, slices = slices, permutation = permutation)
         self.setLeaf()
         self.match_list.append(tn)
 
@@ -160,13 +170,13 @@ class RuleStructure():
             tp = rule["tp"]
             if tp == "LIST":
                 t = [ self.get_ele_sign(ele) for ele in rule["body"]]
-                ele_sign =  get_list_product_with_slices(t)
+                ele_sign = get_list_product_with_slices(t)
             elif tp == "ANGLE":
                 t = [ self.get_ele_sign(ele) for ele in rule["body"]]
-                ele_sign =  get_set_product_with_slices(t)
+                ele_sign = get_set_product_with_slices(t)
             else:
                 ele_sign_parts = self.get_ele_sign(rule)
-                ele_sign = [(e, (e,)) for e in ele_sign_parts ]
+                ele_sign = [(e, (count_tag_num(e), ), None) for e in ele_sign_parts ]
 
             all_signs.append((ele_sign, nm))
 
@@ -176,7 +186,7 @@ class RuleStructure():
     def build_tp_prefixes(self, rules):
         ans, all_tags = {}, set()
         for rs, nm in rules:
-            for r, slices in rs:
+            for r, slices, permutation in rs:
                 self.rule_id += 1
                 eles = r.strip("#").split("#")
                 sub_ele = ""
@@ -186,7 +196,7 @@ class RuleStructure():
                     if sub_ele not in ans:
                         ans[sub_ele] = TrieNodeInfo()
                 # 多个rule有相同的tag序列，会覆盖
-                ans[sub_ele].addRule(nm, slices)
+                ans[sub_ele].addRule(nm, slices, permutation)
 
         return ans, all_tags
 
@@ -220,14 +230,16 @@ class Parse():
         return (m_d, sv[0]/len(dialog), sv[1]/sv[0], frags, m.tnodes)
 
 
-    def extract_slots(self, slot_indexes, slices, matched_frags):
+    def extract_slots(self, slot_indexes, slices, perm, matched_frags):
         if not slot_indexes:  return {}
         pre = 0
         idx_slot_map = {}
+        print("SLICES", slices, perm)
         for i in range(len(slices)):
             slot_val = join_tuple(matched_frags[pre: pre + slices[i]], 0)
             pre += slices[i]
-            idx_slot_map[i + 1] = slot_val
+            ni = perm[i] if perm else i + 1
+            idx_slot_map[ni] = slot_val
 
         ex_slots = {}
         for slot_name, idx in slot_indexes.items():
@@ -243,9 +255,9 @@ class Parse():
         mm.sort(key = lambda x: (-x[1], x[2]))
         if len(mm) > 0:
             matched = []
-            for name, slices in mm[0][4]:
+            for name, slices, perm in mm[0][4]:
                 slot_indexes = self.rule_trie.post_info[name].slots
-                slots = self.extract_slots(slot_indexes, slices, mm[0][3])
+                slots = self.extract_slots(slot_indexes, slices, perm, mm[0][3])
                 matched.append((mm[0], name, slots))
             return matched
 
@@ -337,10 +349,6 @@ class Parse():
 
         return best_ans
 
-
-    def _double_greed_macth(self):
-        pass
-
     def _greed_match(self, fingerprint, conf):
         self.AM.reset()
         all_matched = []
@@ -393,8 +401,9 @@ class Parse():
             conf =  _conf.atom_plus
             all_matched = self._greed_match(trie, conf)
             matched_items, tags = self.merge_eles(all_matched)
-            all_plus = self.plus_extract(matched_items, [tags[0].name], conf)
-            self.AM.matched.extend(all_plus)
+            if tags:
+                all_plus = self.plus_extract(matched_items, [tags[0].name], conf)
+                self.AM.matched.extend(all_plus)
 
     def plus_extract(self, lst, tag, conf):
         ans = []
