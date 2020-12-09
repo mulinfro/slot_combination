@@ -46,9 +46,10 @@ def run(lex_file, in_str, in_file, dict_dir):
     ac_machine = build_ac.AC()
     ac_machine.make(keywords, all_slot_entity_files)
 
-    rule_graph = parse.RuleStructure(ast_obj, ac_machine)
+    rule_graph = parse.RuleStructure(ast_obj)
+    rule_trie = rule_graph.build()
     #print("PLUS_FINGERPRINT", rule_graph.plus_fingerprint)
-    parser = parse.Parse(rule_graph, ac_machine, _config)
+    parser = parse.Parse(rule_trie, ac_machine, _config)
     time_start=time.time()
     time_ori = time_start
     nums = 1

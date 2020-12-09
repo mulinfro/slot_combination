@@ -1,9 +1,15 @@
 from syntax_check import Error
 from build_ac import AcMatchedGroup
+import config
 
 from collections import namedtuple
 
 RuleMatched = namedtuple('RuleMatched', ['tagkey', 'fragments', 'tnodes'])
+
+def count_tag_num(e):
+    if not e: t = 0
+    else:     t = e.count("#") + 1
+    return t
 
 def get_list_product_with_slices(lst_of_lst):
     ans = [("", ())]
@@ -12,7 +18,7 @@ def get_list_product_with_slices(lst_of_lst):
         for e, f in ans:
             for e2 in lst:
                 if e2 == "": new_ans.append((e, f))
-                else:        new_ans.append((("%s#%s"%(e, e2)).strip("#"), f + (e2,) ))
+                else:        new_ans.append((("%s#%s"%(e, e2)).strip("#"), f + (count_tag_num(e2),) ))
         ans = new_ans
     return ans
 
@@ -84,7 +90,7 @@ class RuleTrie():
         self.plus_tries = plus_tries
         self.need_delete_tags = to_dele_tags
         self.rule_conf = conf
-        sefl.post_info = post_info
+        self.post_info = post_info
 
 
 class RuleStructure():
@@ -103,10 +109,10 @@ class RuleStructure():
     def build(self):
         plus_tries = []
         for p in self.ast.plus:
-            ptrie, _ = self.build_trie(p)
+            ptrie, _ = self.build_trie([p])
             plus_tries.append(ptrie)
 
-        export_trie, export_tags = self.build_trie(selt.ast.export)
+        export_trie, export_tags = self.build_trie(self.ast.export)
         need_delete_tags = self.get_need_delete_tag(export_tags, self.ast.atom + self.ast.word_refs + self.ast.plus)
         return RuleTrie(export_trie, plus_tries, need_delete_tags, self.ast.post_info, self.rule_conf)
 
@@ -145,13 +151,12 @@ class RuleStructure():
             return get_set_product(t)
         elif tp == "VAR":
             name = rule["name"]
-            return self.get_ele_sign(self.rules[name])
+            return self.get_ele_sign(self.rules_body[name])
 
     def get_sign(self, names):
         all_signs = []
         for nm in names:
-            bd = self.rules_body[nm]
-            rule = bd["body"]
+            rule = self.rules_body[nm]["body"]
             tp = rule["tp"]
             if tp == "LIST":
                 t = [ self.get_ele_sign(ele) for ele in rule["body"]]
@@ -160,7 +165,7 @@ class RuleStructure():
                 t = [ self.get_ele_sign(ele) for ele in rule["body"]]
                 ele_sign =  get_set_product_with_slices(t)
             else:
-                ele_sign_parts = self.get_ele_sign(rule_body)
+                ele_sign_parts = self.get_ele_sign(rule)
                 ele_sign = [(e, (e,)) for e in ele_sign_parts ]
 
             all_signs.append((ele_sign, nm))
@@ -181,7 +186,7 @@ class RuleStructure():
                     if sub_ele not in ans:
                         ans[sub_ele] = TrieNodeInfo()
                 # 多个rule有相同的tag序列，会覆盖
-                ans[sub_ele].add(nm, slices)
+                ans[sub_ele].addRule(nm, slices)
 
         return ans, all_tags
 
@@ -202,7 +207,7 @@ class Parse():
         return (matched_length, miss_length)
 
     def get_match_group(self, m, dialog):
-        eles = m.tagkey[1:].split("#")
+        eles = m.tagkey.strip("#").split("#")
         sv = self.score(m.fragments)
         assert len(eles) == len(m.fragments), "Need match"
         frags = []
@@ -222,7 +227,7 @@ class Parse():
         for i in range(len(slices)):
             slot_val = join_tuple(matched_frags[pre: pre + slices[i]], 0)
             pre += slices[i]
-            idx_slot_map[i] = slot_val
+            idx_slot_map[i + 1] = slot_val
 
         ex_slots = {}
         for slot_name, idx in slot_indexes.items():
@@ -240,7 +245,7 @@ class Parse():
             matched = []
             for name, slices in mm[0][4]:
                 slot_indexes = self.rule_trie.post_info[name].slots
-                slots = extract_slots(slot_indexes, slices, mm[0][3])
+                slots = self.extract_slots(slot_indexes, slices, mm[0][3])
                 matched.append((mm[0], name, slots))
             return matched
 
@@ -248,15 +253,13 @@ class Parse():
         self.dialog = dialog
         self.AM = self.ac_machine.match(dialog)
         self.plus_preprocess()
-        self.AM.matched.sort_tags()
+        self.AM.sort_tags()
         if len(self.rule_trie.need_delete_tags) > 0:
             self.AM.delete_tag(self.rule_trie.need_delete_tags)
         self.AM.build_word_next_idx(len(dialog))
-        #print("AM FINAL", len(self.AM.matched), self.AM.matched)
 
     def max_match(self, dialog):
         self.basic_set(dialog)
-        #print("begining match ...")
         matched_eles = self._greed_match(self.rule_trie.export_trie, {})
         return self.select(matched_eles, dialog)
 
@@ -341,7 +344,6 @@ class Parse():
     def _greed_match(self, fingerprint, conf):
         self.AM.reset()
         all_matched = []
-        #print("fingerprint", len(fingerprint) ) 
         for i in range(len(self.AM.matched)):
             ele = self.AM.iter_init_status(i)
             for tag in ele.tags:
@@ -386,7 +388,9 @@ class Parse():
 
     def plus_preprocess(self):
         for trie in self.rule_trie.plus_tries:
-            conf = self.rule_trie.rule_conf[plus_name]
+            #conf = self.rule_trie.rule_conf[plus_name]
+            _conf = config.Config()
+            conf =  _conf.atom_plus
             all_matched = self._greed_match(trie, conf)
             matched_items, tags = self.merge_eles(all_matched)
             all_plus = self.plus_extract(matched_items, [tags[0].name], conf)

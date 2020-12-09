@@ -40,7 +40,7 @@ def skip_tkns(stm, candi):
 def extract_all_atoms(ast):
     slots = {}
     for atom_name in ast.atom:
-        for atom_value in ast.rule[atom_name]["body"]:
+        for atom_value in ast.rules_body[atom_name]["body"]:
             tag = slots.get(atom_value, [])
             if atom_name not in tag:
                 tag.append(atom_name)
@@ -73,7 +73,7 @@ class PostProcess():
 
     def __init__(self, slots, post_func):
         self.slots = slots
-        self.post_func = post
+        self.post_func = post_func
         
 class AST():
 
@@ -201,7 +201,7 @@ class AST():
                 self.word_refs.append(name)
             return {"tp":"REF", "name": name}
         else:
-            if name not in self.rule: Error("Undefined %s"%name)
+            if name not in self.rules_body: Error("Undefined %s"%name)
             return {"tp":"VAR", "name": name} #self.ast[name]
 
     def ast_try_or_ele(self, stm):
@@ -266,8 +266,9 @@ class AST():
             return {"tp":"NUM", "val": str(tkn.val) }
         elif tkn == ("OP", "$"):
             t = stm.next()
-            syntax_assert(t, "NUM", "expected num")
-            return {"tp":"VAR", "val": t.val }
+            #syntax_assert(t, "STR", "expected num")
+            syntax_cond_assert(t.tp == "STR" and t.val.isnumeric(), "expected num")
+            return {"tp":"VAR", "val": int(t.val) }
         else:
             Error("processer error")
 

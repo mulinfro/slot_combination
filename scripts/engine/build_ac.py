@@ -20,7 +20,7 @@ class AC_matched():
         for (a,b,tag,c) in self.matched:
             new_tag = [ t for t in tag if t not in need_delete_tags]
             if new_tag:
-                new_AM.append( (a,b,new_tag, c) )
+                new_AM.append(AcMatchedGroup(a,b,new_tag, c))
         self.matched = new_AM
 
     # 每个位置的下一个合法位置的索引

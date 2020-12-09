@@ -148,7 +148,7 @@ class token_list():
 
             self.chars.next()
             if ch not in "Ee": has_e = False
-        return token("NUM", num(ns), line, col)
+        return token("STR", ns, line, col)
 
     # String语法与python中一样,可能是 "  ' , 多行string用""" , ''''
     def read_string(self):
