@@ -65,16 +65,6 @@ def join_tuple(lst, idx):
     t = [e[idx] for e in lst]
     return "".join(t)
 
-class ExportRulesInfo():
-
-    def __init__(self):
-        self.ruleid = rid
-        self.out_info = out_info
-
-    def add(self, rid, info):
-        pass
-
-
 TNode = namedtuple('TNode', ['name', 'slices', 'permutation'])
 
 class TrieNodeInfo():
@@ -85,12 +75,35 @@ class TrieNodeInfo():
     def isLeaf(self):
         return leafFlag
 
+    def remove_zero(self, lst):
+        ans = []
+        for a,b in lst:
+            if a != 0:
+                ans.append((a,b))
+
+        return tuple(ans)
+
+    def isSameNode(self, nodel, noder):
+        if nodel.name == noder.name:
+            if nodel.permutation is None or noder.permutation is None:
+                return nodel.permutation == noder.permutation and nodel.slices == noder.slices
+            else:
+                lft = self.remove_zero(zip(nodel.slices, nodel.permutation))
+                rht = self.remove_zero(zip(noder.slices, noder.permutation))
+                return lft == rht
+
+        return False
+
     def setLeaf(self, flag = True):
         self.leafFlag =  flag
 
     def addRule(self, name, slices, permutation):
         tn = TNode(name = name, slices = slices, permutation = permutation)
         self.setLeaf()
+        for n in self.match_list:
+            if self.isSameNode(n, tn):
+                return
+
         self.match_list.append(tn)
 
 # Trie implement by hashtable
@@ -108,7 +121,6 @@ class RuleStructure():
     def __init__(self, ast):
         self.ast = ast
         self.rules_body = ast.rules_body
-        self.rule_conf = {}
         self.rule_id = 0
 
     def build_trie(self, names):
@@ -120,11 +132,11 @@ class RuleStructure():
         plus_tries = []
         for p in self.ast.plus:
             ptrie, _ = self.build_trie([p])
-            plus_tries.append(ptrie)
+            plus_tries.append((p, ptrie))
 
         export_trie, export_tags = self.build_trie(self.ast.export)
         need_delete_tags = self.get_need_delete_tag(export_tags, self.ast.atom + self.ast.word_refs + self.ast.plus)
-        return RuleTrie(export_trie, plus_tries, need_delete_tags, self.ast.post_info, self.rule_conf)
+        return RuleTrie(export_trie, plus_tries, need_delete_tags, self.ast.post_info, self.ast.config)
 
     def get_need_delete_tag(self, export_tags, all_tags):
         ans = set()
@@ -203,16 +215,14 @@ class RuleStructure():
 
 class Parse():
 
-    def __init__(self, rule_trie, ac_machine, conf):
+    def __init__(self, rule_trie, ac_machine):
         self.rule_trie = rule_trie
-        self.conf = conf
         self.ac_machine = ac_machine
 
     def score(self, _m):
         matched_length = len(_m)
         for t in _m:
             matched_length += t[1] - t[0]
-
         miss_length = _m[-1][1] - _m[0][0] + 1 - matched_length
         return (matched_length, miss_length)
 
@@ -224,9 +234,7 @@ class Parse():
         for i, idx in enumerate(m.fragments):
             bi, ei = idx[0], idx[1] + 1
             frags.append((dialog[bi: ei], eles[i]))
-
         m_d = dialog[m.fragments[0][0]: m.fragments[-1][1]+1]
-
         return (m_d, sv[0]/len(dialog), sv[1]/sv[0], frags, m.tnodes)
 
 
@@ -250,10 +258,25 @@ class Parse():
 
         return ex_slots
 
+    def select_strategy(candicates, multi):
+        ans = [candicates[0]]
+        if multi:
+            for ele in candicates:
+                if ele
+
+        else:
+            return ans
+
+
     def select(self, matched, dialog):
         mm = [ self.get_match_group(m, dialog) for m in matched]
         mm.sort(key = lambda x: (-x[1], x[2]))
-        if len(mm) > 0:
+
+        if len(mm) == 0: return []
+
+        if config.MULTI_INTENT:
+
+        else:
             matched = []
             for name, slices, perm in mm[0][4]:
                 slot_indexes = self.rule_trie.post_info[name].slots
@@ -272,12 +295,13 @@ class Parse():
 
     def max_match(self, dialog):
         self.basic_set(dialog)
-        matched_eles = self._greed_match(self.rule_trie.export_trie, {})
+        conf = config.get_conf(None, "search")
+        matched_eles = self._greed_match(self.rule_trie.export_trie, conf)
         return self.select(matched_eles, dialog)
 
     def search_match(self, dialog):
         self.basic_set(dialog)
-        conf = self.conf.search
+        conf = config.get_conf(None, "search")
         matched_eles = self._search_match(self.rule_trie.export_trie, conf)
         return self.select(matched_eles, dialog)
         
@@ -389,20 +413,19 @@ class Parse():
                         # simple
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
                         if fingerprint[new_tp].isLeaf:
-                            best_ans.append(RuleMatched(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
+                            best_ans.append(RuleMatched(new_tp, new_matched_eles, fingerprint[new_tp].match_list))
                         stack.append((new_tp, self.AM.save_state(), new_matched_eles ))
 
         return best_ans
 
     def plus_preprocess(self):
-        for trie in self.rule_trie.plus_tries:
-            #conf = self.rule_trie.rule_conf[plus_name]
-            _conf = config.Config()
-            conf =  _conf.atom_plus
+        for pname, trie in self.rule_trie.plus_tries:
+            cname = self.rule_trie.rule_conf.get(pname, "")
+            conf = config.get_conf(cname, "plus")
             all_matched = self._greed_match(trie, conf)
-            matched_items, tags = self.merge_eles(all_matched)
-            if tags:
-                all_plus = self.plus_extract(matched_items, [tags[0].name], conf)
+            matched_items = self.merge_eles(all_matched)
+            if matched_items:
+                all_plus = self.plus_extract(matched_items, [pname], conf)
                 self.AM.matched.extend(all_plus)
 
     def plus_extract(self, lst, tag, conf):
@@ -431,17 +454,15 @@ class Parse():
         return ans
 
     def merge_eles(self, lst):
-        # new_tp,  new_matched_eles(), match_list
+        # new_tp,  new_matched_eles()
         ans = []
-        match_list = []
         for tp, idxes, ml in lst:
-            match_list = ml
             t = 0
             for b,e in idxes:
                 t += b-e +1
             ans.append( (idxes[0][0], idxes[-1][1], idxes[-1][1] - idxes[0][0] + 1 - t ))
 
-        return ans, match_list
+        return ans
 
     def merge_ele(self, ele, b_idx, e_idx):
         return (ele[0], e_idx, ele[2] + b_idx - ele[1] -1)

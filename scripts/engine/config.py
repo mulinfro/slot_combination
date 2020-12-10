@@ -8,32 +8,41 @@
  -- no_skip_atom
  -- no_skip_any
  -- max_dist
-
-
 """
 
-class Config:
+MULTI_INTENT = True
 
-    def __init__(self):
-        self.atom_plus = {"min_N":1, "no_cover":1, "max_dist": 0 }
-        self.var_plus  = {"min_N":1, "no_cover":1, "max_dist": 3 }
-        self.search  = {"no_skip_atom": 0, "no_skip_any": 0, "max_dist": 3 }
-        self.MAX_DIST = 2
-        self.ATOM_PLUS_MAX_DIST = 0
-        self.VAR_PLUS_MAX_DIST = 2
+# 全局基础配置
+__plus   = {"min_N":1, "no_cover":1, "max_dist": 0 }
+__search = {"no_skip_atom": 0, "no_skip_any": 0, "max_dist": 3}
+__export = {}
+__atom = {}
+__rule = {}
 
-    def reset(self, a, b, c, d, e):
-        pass
- 
+# 用户自定义配置
+user_defined_config = {
+    "atom_plus": {"max_dist": 0},
+    "var_plus" : {"max_dist": 3},
+}
 
-class NodeConfig:
+def get_base_conf(tp):
+    if tp == "plus":
+        return __plus
+    elif tp == "search":
+        return __search
+    else:
+        return None
 
-    def __init__(self):
-        self.max_dist = 3
-        self.slot_len = [0, 0]
-        self.slot_not_beginswith = ( )
-        self.slot_beginswith = ( )
+def get_conf(name, tp):
+    base = get_base_conf(tp)
+    ans = {}
+    if base:
+        ans.update(base)
 
+    if not name:
+        return ans
 
-    def equal(self, r):
-        return False
+    assert name in user_defined_config, "Undeinfed user config"
+    nconf = user_defined_config.get(name)
+    ans.update(nconf)
+    return ans

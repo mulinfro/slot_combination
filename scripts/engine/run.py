@@ -1,8 +1,8 @@
 
 from stream import stream, char_stream
-import ast, parse, build_ac
+import ast, parse, build_ac, config
 from tokens import token_list
-import glob, os, config
+import glob, os
 from syntax_check import syntax_cond_assert
 import time
 
@@ -20,11 +20,10 @@ def read_lex(lex_file):
     return ori_in
 
 def run(lex_file, in_str, in_file, dict_dir):
-    _config = config.Config()
     ori_in = read_lex(lex_file)
     script = char_stream(ori_in)
     tokens = token_list(script).tokens
-    ast_obj = ast.AST(stream(tokens), _config)
+    ast_obj = ast.AST(stream(tokens))
 
     print(ast_obj.atom)
     print(ast_obj.plus)
@@ -49,7 +48,7 @@ def run(lex_file, in_str, in_file, dict_dir):
     rule_graph = parse.RuleStructure(ast_obj)
     rule_trie = rule_graph.build()
     #print("PLUS_FINGERPRINT", rule_graph.plus_fingerprint)
-    parser = parse.Parse(rule_trie, ac_machine, _config)
+    parser = parse.Parse(rule_trie, ac_machine)
     time_start=time.time()
     time_ori = time_start
     nums = 1

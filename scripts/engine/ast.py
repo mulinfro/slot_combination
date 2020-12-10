@@ -57,18 +57,6 @@ def get_cross_ele(lst, all_sets, i):
             ans.append( e + lst[i][0:-1])
     return get_cross_ele(lst, ans, i + 1)
 
-def get_plus_config(conf, new_conf, tp):
-    if tp in ["REF", "ATOM"]:
-        base_conf = conf.atom_plus
-    else:
-        base_conf = conf.var_plus
-    if new_conf is None: new_conf = {} 
-    for k, v in base_conf.items():
-        if k not in new_conf:
-            new_conf[k] = v
-
-    return new_conf
-
 class PostProcess():
 
     def __init__(self, slots, post_func):
@@ -77,7 +65,7 @@ class PostProcess():
         
 class AST():
 
-    def __init__(self, stm, conf):
+    def __init__(self, stm):
         self.word_refs = []
         self.atom = []
         self.plus = []
@@ -85,7 +73,7 @@ class AST():
         self.export = []
         self.rules_body = {}
         self.post_info = {}
-        self.conf = conf
+        self.config = {}
         self.build_ast(stm)
 
     def build_ast(self, stm):
@@ -110,27 +98,26 @@ class AST():
             if val["name"] in self.rules_body:
                 Error("conflict rule names: " + val["name"])
 
-            pp = PostProcess(val.get("slots", {}), val.get("post_func", {}))
-            if "slots" in val: val.pop("slots")
-            if "post_func" in val: val.pop("post_func")
-
             self.rules_body[val["name"]] = val
-            self.post_info[val["name"]]  = pp
 
     def ast_export(self, stm):
-        ans = self.ast_rule(stm)
+        ans = self.ast_rule(stm, "export")
         ans["tp"] = "EXPORT"
         return ans
 
-    def ast_rule(self, stm):
+    def add_extra_info(self, name, post_info, tp):
+        post_func, slots, conf_name = post_info
+        self.post_info[name]  = PostProcess(post_func, conf_name)
+        self.config[name] = conf_name
+
+    def ast_rule(self, stm, rtp = "rule"):
         stm.next()
         rule = self.ast_rule_helper(stm)
-        post_func, slots = self.ast_post(stm)
+        post_info = self.ast_post(stm)
+        self.add_extra_info(rule["rule_name"], post_info, rtp)
         syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
 
         ans = {"tp": "RULE", "name":rule["rule_name"], "body": rule["body"]}
-        if post_func: ans["post_func"] = post_func
-        if slots:     ans["slots"] = slots
         return ans
 
     def ast_atom(self, stm):
@@ -143,24 +130,15 @@ class AST():
         #ast_same_type_seq(stm, lambda tkn: syntax_check(tkn, ("SEP","SEMI")))
         return {"tp": "ATOM", "name": rule_name, "body": body }
 
-    def get_body_tp(self, body):
-        tp = body["tp"] 
-        if tp == "VAR":
-            return self.rule[body["name"]]["tp"]
-        else:
-            return tp
-
     def ast_plus(self, stm):
         stm.next()
         rule_name = stm.next().val
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
         body = self.ast_rule_body(stm)
-        post_func, slots = self.ast_post(stm)
-        #config = get_plus_config(self.conf, config, self.get_body_tp(body))
+        post_info = self.ast_post(stm)
+        self.add_extra_info(rule_name, post_info, "plus")
 
         ans = {"tp": "PLUS", "name":rule_name, "body": body }
-        if post_func: ans["post_func"] = post_func
-        if slots:     ans["slots"] = slots
         return ans
         
     def ast_rule_helper(self, stm):
@@ -173,18 +151,13 @@ class AST():
     def ast_list_helper(self, stm, tp):
         body = []
         while not stm.eof():
-            syntax_assert(stm.peek(), "DICT", "\n is %s, need { here"%stm.peek().tp)
-            ele = self.ast_try_or_ele(stm)
+            ele = self.ast_rule_body(stm)
             body.append(ele)
             if not stm.eof():
                 syntax_check(stm.next(), ("SEP", "COMMA"))
             if stm.eof(): break
         syntax_cond_assert(len(body) >= 1, "empty parn")
         return {"tp":tp, "body": body }
-
-    #还没有支持
-    def try_ast_or(self, stm):
-        pass
 
     def ast_dict_ele(self, stm):
         tkn = stm.next()
@@ -282,29 +255,18 @@ class AST():
 
         return paras
 
-    def ast_processer(self, stm):
-        if stm.peek().tp == "STR":
-            func = stm.next().val
-            if not stm.eof() and stm.peek().tp == "PARN":
-                p_stm = stream(stm.next().val)
-                paras = self.get_processer_paras(p_stm)
-                return {"tp": "FUNC", "func": func, "paras": paras}
-            return {"tp": "FUNC", "func": func}
-        else:
-            return self.ast_processer_para(stm)
-
     """
         1. intent = "first", slot_int = 1, slot = $1
         2. @post($1, 2)
     """
     def ast_post(self, stm):
+        post_func, slots, conf_name = {}, {}, ""
         if not stm.eof() and stm.peek().val == "=>":
             stm.next()
             tkn = stm.next()
             syntax_assert(tkn, "DICT", "")
 
             nstm = stream(tkn.val)
-            post_func, slots = {}, {}
             while not nstm.eof():
                 tkn = nstm.next()
                 if tkn == ("OP", "@"):
@@ -314,7 +276,10 @@ class AST():
                     if not nstm.eof() and nstm.peek().tp == "PARN":
                         p_stm = stream(nstm.next().val)
                         paras = self.get_processer_paras(p_stm)
-                    post_func[key.val] = {"tp": "FUNC", "paras": paras}
+                    if paras:
+                        post_func[key.val] = {"tp": "FUNC", "func_name":key.val, "paras": paras}
+                    else:
+                        conf_name = key.val
                 else:
                     syntax_assert(tkn, "STR", "")
                     syntax_assert(nstm.next(), ("OP", "="), "")
@@ -325,7 +290,6 @@ class AST():
                     syntax_assert(nstm.next(), ("SEP", "COMMA"), "")
 
 
-            return post_func, slots
+        return post_func, slots, conf_name
             
-        return None, None
 
