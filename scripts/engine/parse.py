@@ -1,6 +1,7 @@
 from syntax_check import Error
 from build_ac import AcMatchedGroup
-import config
+import config, util
+from items import *
 
 from collections import namedtuple
 
@@ -242,7 +243,6 @@ class Parse():
         if not slot_indexes:  return {}
         pre = 0
         idx_slot_map = {}
-        print("SLICES", slices, perm)
         for i in range(len(slices)):
             slot_val = join_tuple(matched_frags[pre: pre + slices[i]], 0)
             pre += slices[i]
@@ -258,31 +258,38 @@ class Parse():
 
         return ex_slots
 
-    def select_strategy(candicates, multi):
-        ans = [candicates[0]]
+    def apply_select_strategy(self, items, multi):
+        ans = [items[0]]
+        intervals = [(items[0].begin, items[0].end)]
         if multi:
-            for ele in candicates:
-                if ele
+            for item in items:
+                flag = True
+                for interval in intervals:
+                    if util.interval_cover((item.begin, item.end), intervals):
+                        flag = False
+                        break
+                if flag:
+                    ans.append(item)
+                    intervals.append((item.begin, item.end)) 
 
-        else:
-            return ans
+        return ans
 
 
-    def select(self, matched, dialog):
-        mm = [ self.get_match_group(m, dialog) for m in matched]
-        mm.sort(key = lambda x: (-x[1], x[2]))
+    def select(self, matched_items, dialog):
+        if len(matched_items) == 0: return []
+        for m in matched_items:
+            m.cal_match_score(dialog)
+        matched_items.sort(key = lambda x: (-x.match_score, x.miss_score))
 
-        if len(mm) == 0: return []
+        candicates = self.apply_select_strategy(matched_items, config.MULTI_INTENT)
 
-        if config.MULTI_INTENT:
-
-        else:
-            matched = []
-            for name, slices, perm in mm[0][4]:
+        matched = []
+        for c in candicates:
+            for name, slices, perm in c.tnodes:
                 slot_indexes = self.rule_trie.post_info[name].slots
-                slots = self.extract_slots(slot_indexes, slices, perm, mm[0][3])
-                matched.append((mm[0], name, slots))
-            return matched
+                slots = self.extract_slots(slot_indexes, slices, perm, c.fragments)
+                matched.append((c.matched, name, slots))
+        return matched
 
     def basic_set(self, dialog):
         self.dialog = dialog
@@ -319,7 +326,7 @@ class Parse():
                     if matched_ans:
                         all_matched.extend(matched_ans)
                     elif fingerprint[tp].isLeaf:
-                        all_matched.append(RuleMatched(tp, head_ele, fingerprint[tp].match_list))
+                        all_matched.append(MatchedItem(tp, head_ele, fingerprint[tp].match_list))
 
         return all_matched
 
@@ -353,7 +360,7 @@ class Parse():
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
                         #print(ele, new_matched_eles, new_tp)
                         if fingerprint[new_tp].isLeaf:
-                            best_ans.append(RuleMatched(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
+                            best_ans.append(MatchedItem(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
                             # 到达最后一个且匹配到就没要再搜索下去
                             #print(ele, new_matched_eles)
                             """
@@ -386,7 +393,7 @@ class Parse():
                     if matched_ans:
                         all_matched.extend(matched_ans)
                     elif fingerprint[tp].isLeaf:
-                        all_matched.append(RuleMatched(tp, head_ele, fingerprint[tp].match_list))
+                        all_matched.append(MatchedItem(tp, head_ele, fingerprint[tp].match_list))
 
         return all_matched
 
@@ -413,7 +420,7 @@ class Parse():
                         # simple
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
                         if fingerprint[new_tp].isLeaf:
-                            best_ans.append(RuleMatched(new_tp, new_matched_eles, fingerprint[new_tp].match_list))
+                            best_ans.append(MatchedItem(new_tp, new_matched_eles, fingerprint[new_tp].match_list))
                         stack.append((new_tp, self.AM.save_state(), new_matched_eles ))
 
         return best_ans
@@ -422,9 +429,9 @@ class Parse():
         for pname, trie in self.rule_trie.plus_tries:
             cname = self.rule_trie.rule_conf.get(pname, "")
             conf = config.get_conf(cname, "plus")
-            all_matched = self._greed_match(trie, conf)
-            matched_items = self.merge_eles(all_matched)
+            matched_items = self._greed_match(trie, conf)
             if matched_items:
+                for m in matched_items:  m.cal_index()
                 all_plus = self.plus_extract(matched_items, [pname], conf)
                 self.AM.matched.extend(all_plus)
 
@@ -433,8 +440,8 @@ class Parse():
         p_i = b_i = 0
         cnt = 1
         for i in range(1, len(lst)):
-            start, end, _ = lst[i]
-            pre_end= lst[p_i][1]
+            start, end = lst[i].begin, lst[i].end
+            pre_end= lst[p_i].end
             if end <= pre_end: continue
 
             m_dist = start - pre_end
@@ -443,16 +450,19 @@ class Parse():
                 cnt += 1
             elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ):
                 if cnt >= conf["min_N"]:
-                    ans.append(AcMatchedGroup(lst[b_i][0], lst[p_i][1], tag, "2")  )
+                    ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2")  )
 
                 p_i = b_i =  i
                 cnt = 1
 
         if len(lst) and cnt >= conf["min_N"]:
-            ans.append(AcMatchedGroup(lst[b_i][0], lst[p_i][1], tag, "2")  )
+            ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2")  )
 
         return ans
 
+
+    ### plus preprocess
+    ### 旧代码
     def merge_eles(self, lst):
         # new_tp,  new_matched_eles()
         ans = []
@@ -466,9 +476,6 @@ class Parse():
 
     def merge_ele(self, ele, b_idx, e_idx):
         return (ele[0], e_idx, ele[2] + b_idx - ele[1] -1)
-
-    ### plus preprocess
-
 
     def plus_preprocess_bak(self):
         for plus_name, tag_name, tag_type in self.rule_trie.plus:

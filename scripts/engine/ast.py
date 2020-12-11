@@ -107,7 +107,7 @@ class AST():
 
     def add_extra_info(self, name, post_info, tp):
         post_func, slots, conf_name = post_info
-        self.post_info[name]  = PostProcess(post_func, conf_name)
+        self.post_info[name]  = PostProcess(slots, post_func)
         self.config[name] = conf_name
 
     def ast_rule(self, stm, rtp = "rule"):

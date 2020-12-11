@@ -16,7 +16,6 @@ def read_lex(lex_file):
     for file_name in files:
         with open(file_name, encoding="utf-8") as f:
             ori_in += f.read()
-    print(ori_in)
     return ori_in
 
 def run(lex_file, in_str, in_file, dict_dir):
@@ -25,12 +24,8 @@ def run(lex_file, in_str, in_file, dict_dir):
     tokens = token_list(script).tokens
     ast_obj = ast.AST(stream(tokens))
 
-    print(ast_obj.atom)
-    print(ast_obj.plus)
-    """
-    for k,m in ast_obj.ast.items():
-        print(k, m)
-    """
+    print("ATOM: ", ast_obj.atom)
+    print("PLUS: ", ast_obj.plus)
 
     # 词典文件目录列表， 逗号分开
     all_slot_entity_files = []
