@@ -2,6 +2,7 @@
 from builtin import op_type, op_funcs
 from syntax_check import *
 from stream import stream
+from parse import RulesInfo
 
 def is_candi_op(tkn, candi):
     return tkn.tp == "OP" and tkn.val in candi
@@ -72,6 +73,7 @@ class AST():
         self.rule = []
         self.export = []
         self.rules_body = {}
+        self.all_rules_info = RulesInfo()
         self.post_info = {}
         self.config = {}
         self.build_ast(stm)
@@ -105,16 +107,11 @@ class AST():
         ans["tp"] = "EXPORT"
         return ans
 
-    def add_extra_info(self, name, post_info, tp):
-        post_func, slots, conf_name = post_info
-        self.post_info[name]  = PostProcess(slots, post_func)
-        self.config[name] = conf_name
-
     def ast_rule(self, stm, rtp = "rule"):
         stm.next()
         rule = self.ast_rule_helper(stm)
-        post_info = self.ast_post(stm)
-        self.add_extra_info(rule["rule_name"], post_info, rtp)
+        post_func, slots, conf_name = self.ast_post(stm)
+        self.all_rules_info.add(rule["rule_name"], slots, post_func, conf_name, rtp)
         syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
 
         ans = {"tp": "RULE", "name":rule["rule_name"], "body": rule["body"]}
@@ -135,8 +132,8 @@ class AST():
         rule_name = stm.next().val
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
         body = self.ast_rule_body(stm)
-        post_info = self.ast_post(stm)
-        self.add_extra_info(rule_name, post_info, "plus")
+        post_func, slots, conf_name = self.ast_post(stm)
+        self.all_rules_info.add(rule_name, slots, post_func, conf_name, "plus")
 
         ans = {"tp": "PLUS", "name":rule_name, "body": body }
         return ans

@@ -7,3 +7,7 @@ def interval_cover(it, intervals):
             return True
 
     return False
+
+def join_tuple(lst, idx):
+    t = [e[idx] for e in lst]
+    return "".join(t)

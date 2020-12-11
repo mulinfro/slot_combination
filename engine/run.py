@@ -1,11 +1,11 @@
 
 from stream import stream, char_stream
-import ast, parse, ac, config
+import ast, parse, ac, config, search
 from tokens import token_list
 import glob, os
 from syntax_check import syntax_cond_assert
 import time
-
+from select import Selector
 
 def read_lex(lex_file):
     if os.path.isdir(lex_file):
@@ -41,25 +41,27 @@ def run(lex_file, in_str, in_file, dict_dir):
     ac_machine.make(keywords, all_slot_entity_files)
 
     rule_graph = parse.RuleStructure(ast_obj)
-    rule_trie = rule_graph.build()
-    #print("PLUS_FINGERPRINT", rule_graph.plus_fingerprint)
-    parser = parse.Parse(rule_trie, ac_machine)
+    rule_trie, rule_info = rule_graph.build()
+    searcher = search.Searcher(rule_trie, rule_info, ac_machine)
+
     time_start=time.time()
     time_ori = time_start
     nums = 1
     if in_file:
         lines = open(in_file, encoding="utf-8").readlines()
         nums = len(lines)
-        for in_str in lines:
-            in_str = in_str.strip()
-            if not in_str: continue
+        for line in lines:
+            query = line.strip()
+            if not query: continue
             #ans = parser.max_match(in_str.strip())
-            ans = parser.search_match(in_str.strip())
+            matched_items = searcher.search_match(query)
+            sel = Selector(matched_items, rule_info)
+            ans = sel.apply(query)
             #time_end=time.time()
             #a_time = time_end-time_start
             #print( a_time)
             #time_start = time_end
-            print(in_str, ans)
+            print(query, " =>\t",  ans)
     else:
         #ans = parser.max_match(in_str.strip())
         #print("\nMAX", ans)
