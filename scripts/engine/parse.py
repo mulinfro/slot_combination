@@ -3,10 +3,6 @@ from build_ac import AcMatchedGroup
 import config, util
 from items import *
 
-from collections import namedtuple
-
-RuleMatched = namedtuple('RuleMatched', ['tagkey', 'fragments', 'tnodes'])
-
 def count_tag_num(e):
     if not e: t = 0
     else:     t = e.count("#") + 1
@@ -66,7 +62,6 @@ def join_tuple(lst, idx):
     t = [e[idx] for e in lst]
     return "".join(t)
 
-TNode = namedtuple('TNode', ['name', 'slices', 'permutation'])
 
 class TrieNodeInfo():
     def __init__(self):
@@ -220,25 +215,6 @@ class Parse():
         self.rule_trie = rule_trie
         self.ac_machine = ac_machine
 
-    def score(self, _m):
-        matched_length = len(_m)
-        for t in _m:
-            matched_length += t[1] - t[0]
-        miss_length = _m[-1][1] - _m[0][0] + 1 - matched_length
-        return (matched_length, miss_length)
-
-    def get_match_group(self, m, dialog):
-        eles = m.tagkey.strip("#").split("#")
-        sv = self.score(m.fragments)
-        assert len(eles) == len(m.fragments), "Need match"
-        frags = []
-        for i, idx in enumerate(m.fragments):
-            bi, ei = idx[0], idx[1] + 1
-            frags.append((dialog[bi: ei], eles[i]))
-        m_d = dialog[m.fragments[0][0]: m.fragments[-1][1]+1]
-        return (m_d, sv[0]/len(dialog), sv[1]/sv[0], frags, m.tnodes)
-
-
     def extract_slots(self, slot_indexes, slices, perm, matched_frags):
         if not slot_indexes:  return {}
         pre = 0
@@ -273,7 +249,6 @@ class Parse():
                     intervals.append((item.begin, item.end)) 
 
         return ans
-
 
     def select(self, matched_items, dialog):
         if len(matched_items) == 0: return []
@@ -358,7 +333,6 @@ class Parse():
                         new_matched_eles = matched_eles + ((ele.start, ele.end),)
                         # simple
                         # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
-                        #print(ele, new_matched_eles, new_tp)
                         if fingerprint[new_tp].isLeaf:
                             best_ans.append(MatchedItem(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
                             # 到达最后一个且匹配到就没要再搜索下去
@@ -418,7 +392,6 @@ class Parse():
                         is_accept = True
                         new_matched_eles = matched_eles + ((ele.start, ele.end), )
                         # simple
-                        # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
                         if fingerprint[new_tp].isLeaf:
                             best_ans.append(MatchedItem(new_tp, new_matched_eles, fingerprint[new_tp].match_list))
                         stack.append((new_tp, self.AM.save_state(), new_matched_eles ))
@@ -460,62 +433,4 @@ class Parse():
 
         return ans
 
-
-    ### plus preprocess
-    ### 旧代码
-    def merge_eles(self, lst):
-        # new_tp,  new_matched_eles()
-        ans = []
-        for tp, idxes, ml in lst:
-            t = 0
-            for b,e in idxes:
-                t += b-e +1
-            ans.append( (idxes[0][0], idxes[-1][1], idxes[-1][1] - idxes[0][0] + 1 - t ))
-
-        return ans
-
-    def merge_ele(self, ele, b_idx, e_idx):
-        return (ele[0], e_idx, ele[2] + b_idx - ele[1] -1)
-
-    def plus_preprocess_bak(self):
-        for plus_name, tag_name, tag_type in self.rule_trie.plus:
-            conf = self.rule_trie.rule_conf[plus_name]
-            if tag_type == "ATOM":
-                self.atom_plus_preprocess(tag_name, [plus_name], conf, "keyword")
-            elif  tag_type == "REF":
-                self.atom_plus_preprocess(tag_name, [plus_name], conf, "slot")
-            else:
-                self.var_plus_preprocess(plus_name, conf)
-
-    def atom_plus_preprocess(self, ap_tag, tag, conf, tp = "keyword"):
-        tag_index = self.AM.word_tag_index
-        if ap_tag not in tag_index or len(tag_index[ap_tag]) < conf["min_N"]:
-            return None
-
-        ids_of_tag = tag_index[ap_tag]
-        # 找到所有的atom plus
-        pre_tag_idx = beg_tag_idx = 0
-        cnt = 1
-        for i in range(1, len(ids_of_tag)):
-            start, end, _ = ids_of_tag[i]
-            pre_end= ids_of_tag[pre_tag_idx][1]
-            if end <= pre_end:
-                continue
-
-            m_dist = start - pre_end
-            if m_dist > 0 and m_dist <= conf["max_dist"] + 1:
-                pre_tag_idx = i
-                cnt += 1
-            elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ) :
-                if cnt >= conf["min_N"]:
-                    ss_index, _, _ = ids_of_tag[beg_tag_idx]
-                    _, se_index, _ = ids_of_tag[pre_tag_idx]
-                    self.AM.matched.append(AcMatchedGroup(ss_index, se_index, tag, "2") )
-
-                pre_tag_idx = i
-                beg_tag_idx = i
-                cnt = 1
-
-        if cnt >= conf["min_N"]:
-            self.AM.matched.append(AcMatchedGroup(ids_of_tag[beg_tag_idx][0], ids_of_tag[pre_tag_idx][1], tag, "2") )
 

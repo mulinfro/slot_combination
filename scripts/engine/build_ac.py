@@ -1,7 +1,5 @@
 import ahocorasick
-
-from collections import namedtuple
-AcMatchedGroup = namedtuple('AcMatchedGroup', ['start', 'end', 'tags', 'tag_type'])
+from items import AcMatchedGroup
 
 class AC_matched():
     def __init__(self, a, b):

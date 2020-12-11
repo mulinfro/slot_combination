@@ -1,4 +1,8 @@
 
+from collections import namedtuple
+TNode = namedtuple('TNode', ['name', 'slices', 'permutation'])
+
+AcMatchedGroup = namedtuple('AcMatchedGroup', ['start', 'end', 'tags', 'tag_type'])
 
 class MatchedItem:
 
