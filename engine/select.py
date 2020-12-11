@@ -51,8 +51,10 @@ class Selector:
 
         selected = []
         for c in candicates:
+            diff_slots = {}
             for name, slices, perm in c.tnodes:
                 slot_indexes = self.rules_info.slots[name]
                 slots = self.extract_slots(slot_indexes, slices, perm, c.fragments)
-                selected.append((c.matched, name, slots))
+                diff_slots[name] = slots
+            selected.append((c.matched, c.match_score, diff_slots))
         return selected
