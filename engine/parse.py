@@ -1,5 +1,4 @@
 from syntax_check import Error
-from build_ac import AcMatchedGroup
 import config, util
 from items import *
 
