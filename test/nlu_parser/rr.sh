@@ -4,9 +4,9 @@
 #ipath=/mnt/c/Users/liuliang/Documents/GitHub/slot_combination/
 #/home/liangliu/github/slot_combination/test/poetry_test
 
-ipath=/home/liangliu/github/slot_combination/
+ipath="../.."
 
-python3 run.py -i ${ipath}/test/test_syntax.lex -f ${ipath}/test/test_text.txt
+python3 ${ipath}/engine/run.py -i test_syntax.lex -f test_text.txt
 
 #sss=${1}
 #python3 run.py -i ${ipath}/test/poetry_test -s ${sss} -d ${ipath}/test/poetry_test 
