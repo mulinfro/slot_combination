@@ -6,11 +6,11 @@ def register(module, paras, args):
         paras.append(p)
         args.append(module.__dict__.get(p))
 
-def get_builtin_env():
+def get_lib_env():
     paras, args = [], []
     from post_libs import post_functions
     register(post_functions, paras, args)
 
     return dict(zip(paras, args))
 
-post_modules = get_builtin_env()
+post_modules = get_lib_env()
