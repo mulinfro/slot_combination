@@ -8,7 +8,7 @@ plus num = {digit}
 
 rule expr0 = [{num}, {op}, {num}]
 
-export expr1 = [{num}, {op}, {num}, {多少}] => {intent="表达式0", opl = $1, op = $2, opr = $3 }
+export expr1 = [{num}, {op}, {num}, {多少}] => {intent="表达式0", opl = $1, op = $2, opr = $3, joined=@join("-", $1, $2, $3)}
 
 atom 知不知道 = 你?知道|你?知不知道
 
