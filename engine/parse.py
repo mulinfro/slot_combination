@@ -107,15 +107,21 @@ class RulesInfo():
 
     def __init__(self):
         self.slots = {}
-        self.post_func = {}
         self.config = {}
         self.rule_type = {}
+        self.post_func = {}
 
-    def add(self, name, slot, pf, conf, rtp):
-        self.slots[name] = slot
-        self.post_func[name] = pf
-        self.config[name] = conf
-        self.rule_type[name] = rtp
+    def add(self, rule_name, slot, pf, confs, rtp):
+        self.slots[rule_name] = slot
+        self.post_func[rule_name] = pf
+        self.config[rule_name] = confs
+        self.rule_type[rule_name] = rtp
+
+    def get(self, name):
+        slot = self.slots.get(name, {})
+        pfunc = self.post_func.get(name, {})
+        conf = self.config.get(name, [])
+        return (slot, pfunc, conf)
 
 class RuleStructure():
 

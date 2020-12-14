@@ -42,7 +42,18 @@ def get_conf(name, tp):
     if not name:
         return ans
 
-    assert name in user_defined_config, "Undeinfed user config"
     nconf = user_defined_config.get(name)
     ans.update(nconf)
+    return ans
+
+def get_confs(conf_names, tp):
+    base = get_base_conf(tp)
+    ans = {}
+    if base:
+        ans.update(base)
+
+    for cname in conf_names:
+        nconf = user_defined_config.get(cname)
+        ans.update(nconf)
+
     return ans

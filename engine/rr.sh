@@ -1,9 +1,10 @@
 
 #python3 run.py -i 故事_test.lex -n 20 -d /home/liangliu/expand_rules_git/expand_rules
 
-ipath=/home/liangliu/github/slot_combination
-
+#ipath=/mnt/c/Users/liuliang/Documents/GitHub/slot_combination/
 #/home/liangliu/github/slot_combination/test/poetry_test
+
+ipath=/home/liangliu/github/slot_combination/
 
 python3 run.py -i ${ipath}/test/test_syntax.lex -f ${ipath}/test/test_text.txt
 

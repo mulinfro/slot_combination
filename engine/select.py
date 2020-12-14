@@ -1,4 +1,6 @@
 import config, util
+from post_register import post_modules
+from syntax_check import Error
 
 class Selector:
 
@@ -6,8 +8,25 @@ class Selector:
         self.matched_items = matched_items
         self.rules_info = rules_info
 
-    def extract_slots(self, slot_indexes, slices, perm, matched_frags):
+    def extract_slots(self, slot_indexes, idx_slot_map):
         if not slot_indexes:  return {}
+
+        ex_slots = {}
+        for slot_name, slot_body in slot_indexes.items():
+            val = slot_body["val"]
+            if slot_body["tp"] == "VAR":
+                ex_slots[slot_name] = idx_slot_map[val]
+            elif slot_body["tp"] in ["STRING", "NUM"]:
+                ex_slots[slot_name] = val
+            elif slot_body["tp"] == "FUNC":
+                paras = slot_body["paras"]
+                ex_slots[slot_name] = post_modules[val](paras, ex_slots, idx_slot_map)
+            else:
+                Error("Unexpected slot type %s"%slot_body["tp"])
+
+        return ex_slots
+
+    def apply_post(self, slot_indexes, pfunc, slices, perm, matched_frags):
         pre = 0
         idx_slot_map = {}
         for i in range(len(slices)):
@@ -16,14 +35,10 @@ class Selector:
             ni = perm[i] if perm else i + 1
             idx_slot_map[ni] = slot_val
 
-        ex_slots = {}
-        for slot_name, idx in slot_indexes.items():
-            if type(idx) == int:
-                ex_slots[slot_name] = idx_slot_map[idx]
-            else:
-                ex_slots[slot_name] = idx
-
-        return ex_slots
+        slots = self.extract_slots(slot_indexes, idx_slot_map)
+        for fname, params in pfunc.items():
+            post_modules[fname](params, slots, idx_slot_map)
+        return slots
 
     def apply_select_strategy(self, items, multi):
         ans = [items[0]]
@@ -54,7 +69,8 @@ class Selector:
             diff_slots = {}
             for name, slices, perm in c.tnodes:
                 slot_indexes = self.rules_info.slots[name]
-                slots = self.extract_slots(slot_indexes, slices, perm, c.fragments)
+                slot_indexes, pfunc, _ = self.rules_info.get(name)
+                slots = self.apply_post(slot_indexes, pfunc, slices, perm, c.fragments)
                 diff_slots[name] = slots
             selected.append((c.matched, c.match_score, diff_slots))
         return selected

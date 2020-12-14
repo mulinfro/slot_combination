@@ -140,8 +140,8 @@ class Searcher():
 
     def plus_preprocess(self):
         for pname, trie in self.rule_trie.plus_tries:
-            cname = self.rule_info.config.get(pname, "")
-            conf = config.get_conf(cname, "plus")
+            conf_names = self.rule_info.config.get(pname, [])
+            conf = config.get_confs(conf_names, "plus")
             matched_items = self._greed_match(trie, conf)
             if matched_items:
                 for m in matched_items:  m.cal_index()

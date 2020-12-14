@@ -3,6 +3,10 @@ from builtin import op_type, op_funcs
 from syntax_check import *
 from stream import stream
 from parse import RulesInfo
+from post_register import post_modules
+from items import ParamItem
+import collections
+from config import user_defined_config
 
 def is_candi_op(tkn, candi):
     return tkn.tp == "OP" and tkn.val in candi
@@ -58,12 +62,6 @@ def get_cross_ele(lst, all_sets, i):
             ans.append( e + lst[i][0:-1])
     return get_cross_ele(lst, ans, i + 1)
 
-class PostProcess():
-
-    def __init__(self, slots, post_func):
-        self.slots = slots
-        self.post_func = post_func
-        
 class AST():
 
     def __init__(self, stm):
@@ -230,17 +228,15 @@ class AST():
 
     def ast_processer_para(self, stm):
         tkn = stm.next()
-        if tkn.tp == "STRING":
-            return {"tp":"STRING", "val": tkn.val }
-        elif tkn.tp == "NUM":
-            return {"tp":"NUM", "val": str(tkn.val) }
+        if tkn.tp in ["STRING", "NUM"]:
+            return ParamItem(tkn.tp, tkn.val)
         elif tkn == ("OP", "$"):
             t = stm.next()
             #syntax_assert(t, "STR", "expected num")
             syntax_cond_assert(t.tp == "STR" and t.val.isnumeric(), "expected num")
-            return {"tp":"VAR", "val": int(t.val) }
+            return ParamItem("VAR", int(t.val))
         else:
-            Error("processer error")
+            Error("processer error %s"%(str(tkn)))
 
     def get_processer_paras(self, stm):
         paras = []
@@ -252,12 +248,32 @@ class AST():
 
         return paras
 
+    def ast_post_element(self, stm):
+        tkn = stm.peek()
+        if tkn == ("OP", "@"):
+            stm.next()
+            key = stm.next()
+            syntax_assert(key, "STR", "")
+            if not stm.eof() and stm.peek().tp == "PARN":
+                p_stm = stream(stm.next().val)
+                paras = self.get_processer_paras(p_stm)
+                syntax_cond_assert(key.val in post_modules,  key.val + " not in post libs")
+                return {"tp": "FUNC", "val": key.val, "paras": paras}
+            else:
+                syntax_cond_assert(key.val in user_defined_config,  key.val + " not in user_defined_config")
+                return {"tp": "CONF", "val": key.val}
+        else:
+            val = self.ast_processer_para(stm)
+            return {"tp":val.tp , "val": val.val}
+
     """
         1. intent = "first", slot_int = 1, slot = $1
         2. @post($1, 2)
     """
     def ast_post(self, stm):
-        post_func, slots, conf_name = {}, {}, ""
+        post_func = collections.OrderedDict()
+        slots = collections.OrderedDict()
+        conf_names = []
         if not stm.eof() and stm.peek().val == "=>":
             stm.next()
             tkn = stm.next()
@@ -265,28 +281,26 @@ class AST():
 
             nstm = stream(tkn.val)
             while not nstm.eof():
-                tkn = nstm.next()
-                if tkn == ("OP", "@"):
-                    key = nstm.next()
-                    syntax_assert(key, "STR", "")
-                    paras = []
-                    if not nstm.eof() and nstm.peek().tp == "PARN":
-                        p_stm = stream(nstm.next().val)
-                        paras = self.get_processer_paras(p_stm)
-                    if paras:
-                        post_func[key.val] = {"tp": "FUNC", "func_name":key.val, "paras": paras}
-                    else:
-                        conf_name = key.val
-                else:
-                    syntax_assert(tkn, "STR", "")
+                tkn = nstm.peek()
+                if tkn.tp == "STR":
+                    nstm.next()
                     syntax_assert(nstm.next(), ("OP", "="), "")
-                    val = self.ast_processer_para(nstm)["val"]
-                    slots[tkn.val] = val
+                    ele = self.ast_post_element(nstm)
+                    syntax_cond_assert(ele["tp"] != "CONF", "syntax error, unexpected config in slots")
+                    slots[tkn.val] = ele
+                elif tkn == ("OP", "@"):
+                    ele = self.ast_post_element(nstm)
+                    if ele["tp"] == "FUNC":
+                        post_func[ele["val"]] = ele["paras"]
+                    else:
+                        conf_names.append(ele["val"])
+                else:
+                    Error("Unexpected %s in line %d, col %d"%(tkn.val, tkn.line, tkn.col))
 
                 if not nstm.eof():
                     syntax_assert(nstm.next(), ("SEP", "COMMA"), "")
 
 
-        return post_func, slots, conf_name
+        return post_func, slots, conf_names
             
 

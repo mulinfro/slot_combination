@@ -1,5 +1,6 @@
 
 from collections import namedtuple
+ParamItem = namedtuple('ParamItem', ['tp', 'val'])
 TNode = namedtuple('TNode', ['name', 'slices', 'permutation'])
 
 AcMatchedGroup = namedtuple('AcMatchedGroup', ['start', 'end', 'tags', 'tag_type'])
