@@ -1,5 +1,5 @@
 
-__all__ = ["join"]
+__all__ = ["join", "delete"]
 
 def get_slot_val(para_item, slots, idx_slot_map):
     if para_item.tp == "VAR":
@@ -17,4 +17,10 @@ def join(params, slots, idx_slot_map):
         v = get_slot_val(para_item, slots, idx_slot_map)
         vals.append(v)
     return sep.join(vals)
+
+
+def delete(params, slots, idx_slot_map):
+    for para_item in params:
+        if para_item.val in slots:
+            slots.pop(para_item.val)
 

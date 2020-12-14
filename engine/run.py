@@ -33,7 +33,7 @@ def run(lex_file, in_str, in_file, dict_dir):
         dict_dirs = dict_dir.split(",")
         for dir_path in dict_dirs:
             all_slot_entity_files.extend(glob.glob(dir_path + "/*.txt"))
-    print(all_slot_entity_files)
+    print("词典文件:", all_slot_entity_files)
 
     # 规则中的关键词
     keywords = ast.extract_all_atoms(ast_obj)
