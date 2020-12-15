@@ -1,7 +1,7 @@
 import ahocorasick
 from items import AcMatchedGroup
 
-class AC_matched():
+class AcMatcher():
     def __init__(self, a, b):
         self.matched = a
         self.sort_tags()
@@ -140,7 +140,7 @@ class AC():
         matched = self.match_a_ac(self.keyword_ac, query, "0")
         matched_slot = self.match_a_ac(self.slot_ac, query, "1")
         matched.extend(matched_slot)
-        return AC_matched(matched, self.get_tag_idx_dict(matched))
+        return AcMatcher(matched, self.get_tag_idx_dict(matched))
         
     def match_a_ac(self, A, query, word_tp):
         ans = []

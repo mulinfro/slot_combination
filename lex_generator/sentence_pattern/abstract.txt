@@ -1,4 +1,0 @@
-act set noun => 1
-set noun act => 1
-
-
