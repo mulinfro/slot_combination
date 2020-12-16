@@ -6,7 +6,7 @@
 
 ipath="../.."
 
-python3 ${ipath}/engine/run.py -i test_syntax.lex -f test_text.txt
+python3 ${ipath}/engine/app.py -i test_syntax.lex -f test_text.txt
 
 #sss=${1}
 #python3 run.py -i ${ipath}/test/poetry_test -s ${sss} -d ${ipath}/test/poetry_test 
