@@ -1,4 +1,4 @@
-#  语义
+#  解析
 
 ###  程序结构
  - builtin.py 内置关键词，特殊符号等
@@ -14,6 +14,6 @@
  - parse.py  把语法树解析成特殊的Trie树，及后处理信息
  - search.py  搜索出所有可以匹配的规则
  - select.py  筛选出最优匹配
- - run.py 运行入口文件
+ - app.py 运行入口文件
  - post_register.py 后处理库注册
  - post_libs  定义后处理函数的目录
