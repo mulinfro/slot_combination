@@ -25,3 +25,8 @@ export music2 = [{pre}, <{播放}?, [{歌手}, {歌曲}]> ] => {intent="歌曲2"
 plus op_p = {op} => {@var_plus}
 export test_plus_conf = [{op_p}] => {intent="测试配置", val=$1}
 
+
+atom aaa = AAA
+atom aa = AA
+
+<bb, bbb>?
