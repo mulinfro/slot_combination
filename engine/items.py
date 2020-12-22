@@ -3,7 +3,7 @@ from collections import namedtuple
 ParamItem = namedtuple('ParamItem', ['tp', 'val'])
 TNode = namedtuple('TNode', ['name', 'slices', 'permutation'])
 
-AcMatchedGroup = namedtuple('AcMatchedGroup', ['start', 'end', 'tags', 'tag_type'])
+AcMatchedGroup = namedtuple('AcMatchedGroup', ['start', 'end', 'tag', 'tag_type'])
 
 class MatchedItem:
 
