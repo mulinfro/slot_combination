@@ -12,10 +12,10 @@ class Searcher():
         self.dialog = dialog
         self.AM = self.ac_machine.match(dialog)
         self.plus_preprocess()
-        self.AM.sorted()
         if len(self.rule_trie.need_delete_tags) > 0:
             self.AM.delete_tag(self.rule_trie.need_delete_tags)
-        #self.AM.build_word_next_idx(len(dialog))
+        self.AM.sorted()
+        self.AM.build_word_next_idx(len(dialog))
 
     def max_match(self, dialog):
         self.basic_set(dialog)
@@ -39,10 +39,14 @@ class Searcher():
                 matched_ans = self._search_match_helper(tp, head_ele, fingerprint, has_seen, conf)
                 if matched_ans:
                     all_matched.extend(matched_ans)
-                elif fingerprint[tp].isLeaf:
+                elif fingerprint[tp].isLeaf():
                     all_matched.append(MatchedItem(tp, head_ele, fingerprint[tp].match_list))
 
         return all_matched
+
+    def path_valid_check(self, path_sign, fingerprint):
+        if path_sign not in fingerprint:
+            return false
 
 
     # 对规则的最长匹配
@@ -68,10 +72,12 @@ class Searcher():
                 if new_tp in fingerprint:
                     #self.AM.accept(ele)
                     #is_accept = True
+
+                    # fingerprint[new_tp]
                     new_matched_eles = matched_eles + ((ele.start, ele.end),)
                     # simple
                     # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
-                    if fingerprint[new_tp].isLeaf:
+                    if fingerprint[new_tp].isLeaf():
                         best_ans.append(MatchedItem(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
                         # 到达最后一个且匹配到就没要再搜索下去
                         #print(ele, new_matched_eles)
@@ -103,7 +109,7 @@ class Searcher():
                 matched_ans = self._greed_match_helper(tp, head_ele, fingerprint, conf)
                 if matched_ans:
                     all_matched.extend(matched_ans)
-                elif fingerprint[tp].isLeaf:
+                elif fingerprint[tp].isLeaf():
                     all_matched.append(MatchedItem(tp, head_ele, fingerprint[tp].match_list))
 
         return all_matched
@@ -128,7 +134,7 @@ class Searcher():
                     is_accept = True
                     new_matched_eles = matched_eles + ((ele.start, ele.end), )
                     # simple
-                    if fingerprint[new_tp].isLeaf:
+                    if fingerprint[new_tp].isLeaf():
                         best_ans.append(MatchedItem(new_tp, new_matched_eles, fingerprint[new_tp].match_list))
                     stack.append((new_tp, self.AM.save_state(), new_matched_eles ))
 

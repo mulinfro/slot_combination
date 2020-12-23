@@ -60,7 +60,7 @@ class Selector:
         if len(self.matched_items) == 0: return []
         for m in self.matched_items:
             m.cal_match_score(dialog)
-        self.matched_items.sort(key = lambda x: (-x.match_score, x.miss_score))
+        self.matched_items.sort(key = lambda x: (-x.match_score, x.fuzzy_degree))
 
         candicates = self.apply_select_strategy(self.matched_items, config.MULTI_INTENT)
 

@@ -13,12 +13,12 @@ class MatchedItem:
         self.tnodes = tnodes
         self.matched = ""
         self.match_score = 0
-        self.miss_score = 0
+        self.fuzzy_degree = 0
         self.begin = 0
         self.end = 0
 
     def __repr__(self):
-        return "%s,%d,%d"%(self.matched, self.begin, self.end)
+        return "(%s,%d,%d)"%(self.matched, self.begin, self.end)
 
     def score(self):
         matched_length = len(self.fragments)
@@ -45,4 +45,4 @@ class MatchedItem:
         self.matched = dialog[self.begin: self.end + 1]
         sv = self.score()
         self.match_score = sv[0] / len(dialog)
-        self.miss_score = sv[1] / sv[0]
+        self.fuzzy_degree = sv[1] / sv[0]

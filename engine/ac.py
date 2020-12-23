@@ -6,7 +6,7 @@ class AcMatcher():
         self.matched = a
         self.sorted()
         self.word_tag_index = b
-        self.word_next_idx = None
+        self.word_next_idx = []
         self._i = 0
         self.accept_endidx = -1
 
@@ -15,23 +15,6 @@ class AcMatcher():
 
     def delete_tag(self, need_delete_tags):
         self.matched = [m  for m in self.matched if m.tag not in need_delete_tags]
-
-    # 每个位置的下一个合法位置的索引
-    def build_word_next_idx(self, n):
-        ans = [-1] * n
-        for j, (start_index, end_index, _, tp) in enumerate(self.matched):
-            if ans[start_index] < 0:
-                ans[start_index] = j
-
-        pre = len(self.matched)
-        ans.append(pre)
-        for j in range(len(ans) -1, -1, -1):
-            if ans[j] < 0:
-                ans[j] = pre
-            else:
-                pre = ans[j]
-
-        return ans
 
     def save_state(self):
         return (self._i, self.accept_endidx)
@@ -55,11 +38,19 @@ class AcMatcher():
         self.skip_unaccept()
         return keyword
 
+    # 每个位置的下一个合法位置的索引
+    def build_word_next_idx(self, n):
+        k = 0
+        for i in range(n):
+            while k < len(self.matched) and self.matched[k].start <= i:
+                k += 1
+            self.word_next_idx.append(k)
+
     def skip_unaccept(self):
         if self.word_next_idx:
-            self._i = max(self._i, self.word_next_idx[ self.accept_endidx + 1 ])
+            self._i = max(self._i, self.word_next_idx[self.accept_endidx])
         else:
-            while self._i < len(self.matched) and self.matched[self._i][0] <= self.accept_endidx:
+            while self._i < len(self.matched) and self.matched[self._i].start <= self.accept_endidx:
                 self._i += 1
 
     def get_cur(self):
@@ -69,7 +60,7 @@ class AcMatcher():
         
     def get_typeed_next(self, tp):
         self.skip_unaccept()
-        while self._i < len(self.matched) and self.matched[self._i][3] != tp:
+        while self._i < len(self.matched) and self.matched[self._i].tag_type != tp:
             self._i += 1
 
         if self._i < len(self.matched):
@@ -83,7 +74,7 @@ class AcMatcher():
         return self.matched[self._i - 1]
 
     def accept(self, ele):
-        self.accept_endidx = ele[1]
+        self.accept_endidx = ele.end
 
     def get_word_dist(self, new_idx):
         return new_idx - self.accept_endidx - 1

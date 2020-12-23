@@ -63,7 +63,7 @@ class TrieNodeInfo():
         self.leafFlag = False
 
     def isLeaf(self):
-        return leafFlag
+        return self.leafFlag
 
     def remove_zero(self, lst):
         ans = []
