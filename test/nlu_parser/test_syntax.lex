@@ -1,12 +1,14 @@
 
-atom digit = 0|1|2|3|4|5|6|7|8|9
-atom op = 加上?|减去?|乘以?|除去?
+atom xx = xx?
+atom xxx = tx?t|yy
+atom digit = 0|1|2|3|4|5|6|7|8|9 => {__OUT__ = @to_hans($0)}
+atom op = 加上?|减去?|乘以?|除去?  
 
 # 所有constant必须在atom中
-atom 多少 = 多少|几
+atom 多少 = 多少|几 => {__OUT__ = "X"}
 plus num = {digit}
-
-rule expr0 = [{num}, {op}, {num}]
+# => {__OUT__ = @trans_digit(), __MATCH__ = @valid_digit() }
+rule expr0 = [{num}, {op}, {num}]  
 
 export expr1 = [{num}, {op}, {num}, {多少}] => {intent="表达式0", opl = $1, op = $2, opr = $3, joined=@join("-", $1, $2, $3)}
 export expr2 = [{num}, {op}, {num}, {多少}] => {intent="表达式02", opl = $1, op = $2, opr = $3, joined=@join("-", $1, $2, $3), @delete("opl", "op", "opr")}
@@ -15,7 +17,7 @@ atom 知不知道 = 你?知道|你?知不知道
 
 export calculator1=[{expr0}, {知不知道}?, {多少}? ] => {intent="表达式1", expr = $1, x = $3 }
 
-#rule any = __ANY(1,9)
+#rule any = __ANY__(1,9)
 
 atom 播放=播放?|放 
 atom 歌手 = 刘德华|周杰伦|王菲

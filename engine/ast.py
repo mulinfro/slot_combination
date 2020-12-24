@@ -2,7 +2,6 @@
 from builtin import op_type, op_funcs
 from syntax_check import *
 from stream import stream
-from parse import RulesInfo
 from post_register import post_modules
 from items import ParamItem
 import collections
@@ -62,6 +61,44 @@ def get_cross_ele(lst, all_sets, i):
             ans.append( e + lst[i][0:-1])
     return get_cross_ele(lst, ans, i + 1)
 
+
+class RulesInfo():
+
+    def __init__(self):
+        self.slots = {}
+        self.config = {}
+        self.rule_type = {}
+        self.post_func = {}
+        # 需要特殊处理的规则： 后处理； 归一化;  特殊配置;  逻辑unit等
+        self.special_handle = collections.OrderedDict()
+
+    def add(self, rule_name, slot, pf, confs, rtp):
+        self.slots[rule_name] = slot
+        self.post_func[rule_name] = pf
+        self.config[rule_name] = confs
+        self.rule_type[rule_name] = rtp
+
+        if slot or pf or confs:
+            self.special_handle[rule_name] = rtp
+
+    def get(self, name):
+        slot = self.slots.get(name, {})
+        pfunc = self.post_func.get(name, {})
+        conf = self.config.get(name, [])
+        return (slot, pfunc, conf)
+
+    def get_rule_type(self, rname):
+        return self.rule_type[rname]
+
+    def get_special_rules(self):
+        return [v for k,v in self.special_handle.item() if k != "ATOM"]
+
+    def get_special_atoms(self):
+        return [v for k,v in self.special_handle.item() if k == "ATOM"]
+
+    def is_special(self, rname):
+        return rname in self.special_handle
+
 class AST():
 
     def __init__(self, stm):
@@ -72,9 +109,13 @@ class AST():
         self.export = []
         self.rules_body = {}
         self.all_rules_info = RulesInfo()
-        self.post_info = {}
-        self.config = {}
         self.build_ast(stm)
+
+    def is_special_handle_rule(self, rname):
+        return self.all_rules_info.is_special(rname)
+
+    def get_special_handle_rules(self):
+        return self.all_rules_info.get_specials()
 
     def build_ast(self, stm):
         while True:
@@ -101,11 +142,11 @@ class AST():
             self.rules_body[val["name"]] = val
 
     def ast_export(self, stm):
-        ans = self.ast_rule(stm, "export")
+        ans = self.ast_rule(stm, "EXPORT")
         ans["tp"] = "EXPORT"
         return ans
 
-    def ast_rule(self, stm, rtp = "rule"):
+    def ast_rule(self, stm, rtp = "RULE"):
         stm.next()
         rule = self.ast_rule_helper(stm)
         post_func, slots, conf_name = self.ast_post(stm)
@@ -121,6 +162,8 @@ class AST():
         rule_name = stm.next().val
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
         body = self.ast_atom_body(stm)
+        post_func, slots, conf_name = self.ast_post(stm)
+        self.all_rules_info.add(rule_name, slots, post_func, conf_name, "ATOM")
         syntax_cond_assert(is_rule_end(stm, True), "expected rule end")
         #ast_same_type_seq(stm, lambda tkn: syntax_check(tkn, ("SEP","SEMI")))
         return {"tp": "ATOM", "name": rule_name, "body": body }
@@ -131,7 +174,7 @@ class AST():
         syntax_assert(stm.next(), ("OP", "="), "%s need = here"%rule_name)
         body = self.ast_rule_body(stm)
         post_func, slots, conf_name = self.ast_post(stm)
-        self.all_rules_info.add(rule_name, slots, post_func, conf_name, "plus")
+        self.all_rules_info.add(rule_name, slots, post_func, conf_name, "PLUS")
 
         ans = {"tp": "PLUS", "name":rule_name, "body": body }
         return ans
@@ -218,11 +261,11 @@ class AST():
                     if stm.lookahead(2) == ("OP", "?"): sub_eles.append("")
                     break
                 else:
+                    if stm.lookahead(2) == ("OP", "?"): sub_eles.append("")
                     stm.back()
-                    syntax_assert(tkn, "SEP")
                     break
-            eles.extend(get_cross_ele(sub_eles, [""], 0) )
-            if is_rule_end(stm): break
+            eles.extend(get_cross_ele(sub_eles, [""], 0))
+            if is_rule_body_end(stm): break
 
         return eles
 

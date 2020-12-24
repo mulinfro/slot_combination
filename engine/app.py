@@ -54,8 +54,8 @@ class Engine:
         self.rule_info = rule_info
 
     def apply(self, query):
-        matched_items = self.searcher.search_match(query)
-        sel = Selector(matched_items, self.rule_info)
+        matched_items, special_post = self.searcher.search_match(query)
+        sel = Selector(matched_items, special_post, self.rule_info)
         return sel.apply(query)
 
 def run(lex_file, in_str, in_file, dict_dir):

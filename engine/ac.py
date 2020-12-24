@@ -13,8 +13,8 @@ class AcMatcher():
     def sorted(self):
         self.matched.sort(key = lambda x: (x.start, -x.end))
 
-    def delete_tag(self, need_delete_tags):
-        self.matched = [m  for m in self.matched if m.tag not in need_delete_tags]
+    def delete_tag(self, keeped_tags):
+        self.matched = [m for m in self.matched if m.tag in keeped_tags]
 
     def save_state(self):
         return (self._i, self.accept_endidx)

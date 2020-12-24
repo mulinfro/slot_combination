@@ -26,6 +26,7 @@ user_defined_config = {
 }
 
 def get_base_conf(tp):
+    tp = tp.lower()
     if tp == "plus":
         return __plus
     elif tp == "search":

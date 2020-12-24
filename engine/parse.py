@@ -98,30 +98,10 @@ class TrieNodeInfo():
 
 # Trie implement by hashtable
 class RuleTrie():
-    def __init__(self, export_trie, plus_tries, to_dele_tags):
+    def __init__(self, export_trie, special_tries, keeped_tags):
         self.export_trie = export_trie
-        self.plus_tries = plus_tries
-        self.need_delete_tags = to_dele_tags
-
-class RulesInfo():
-
-    def __init__(self):
-        self.slots = {}
-        self.config = {}
-        self.rule_type = {}
-        self.post_func = {}
-
-    def add(self, rule_name, slot, pf, confs, rtp):
-        self.slots[rule_name] = slot
-        self.post_func[rule_name] = pf
-        self.config[rule_name] = confs
-        self.rule_type[rule_name] = rtp
-
-    def get(self, name):
-        slot = self.slots.get(name, {})
-        pfunc = self.post_func.get(name, {})
-        conf = self.config.get(name, [])
-        return (slot, pfunc, conf)
+        self.special_tries = special_tries
+        self.keeped_tags = keeped_tags
 
 class RuleStructure():
 
@@ -136,31 +116,25 @@ class RuleStructure():
         return fingerprint, tags
 
     def build(self):
-        plus_tries = []
-        for p in self.ast.plus:
+        special_tries = []
+        for p in self.ast.get_special_rules():
             ptrie, _ = self.build_trie([p])
-            plus_tries.append((p, ptrie))
+            special_tries.append((p, ptrie))
 
         export_trie, export_tags = self.build_trie(self.ast.export)
-        need_delete_tags = self.get_need_delete_tag(export_tags, self.ast.atom + self.ast.word_refs + self.ast.plus)
-        return RuleTrie(export_trie, plus_tries, need_delete_tags), self.ast.all_rules_info
-
-    def get_need_delete_tag(self, export_tags, all_tags):
-        ans = set()
-        for t in all_tags:
-            if t not in export_tags:
-                ans.add(t)
-
-        return ans
+        return RuleTrie(export_trie, special_tries, export_tags), self.ast.all_rules_info
 
     def get_ele_sign(self, rule):
         tp = rule["tp"]
-        if tp == "ATOM":
-            return ["0" + rule["name"]]
+        rname = rule.get("name", None)
+        if rname and self.ast.is_special_handle_rule(rname):
+            return ["3" + rname]
+        elif tp == "ATOM":
+            return ["0" + rname]
         elif tp == "REF":
-            return ["1" + rule["name"]]
+            return ["1" + rname]
         elif tp == "PLUS":
-            return ["2" + rule["name"]]
+            return ["2" + rname]
         elif tp == "RULE":
             return self.get_ele_sign(rule["body"])
         elif tp == "OR":
@@ -206,7 +180,6 @@ class RuleStructure():
         ans, all_tags = {}, set()
         for rs, nm in rules:
             for r, slices, permutation in rs:
-                self.rule_id += 1
                 eles = r.strip("#").split("#")
                 sub_ele = ""
                 for ele in eles:

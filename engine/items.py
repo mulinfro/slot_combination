@@ -3,6 +3,15 @@ from collections import namedtuple
 ParamItem = namedtuple('ParamItem', ['tp', 'val'])
 TNode = namedtuple('TNode', ['name', 'slices', 'permutation'])
 
+SpecialRulePost = namedtuple('SpecialRulePost', ['tag', 'start', 'end'])
+
+"""
+tag_type: str
+   0: atom
+   1: ref
+   2: plus
+   3: 需要特殊处理的atom或变量
+"""
 AcMatchedGroup = namedtuple('AcMatchedGroup', ['start', 'end', 'tag', 'tag_type'])
 
 class MatchedItem:

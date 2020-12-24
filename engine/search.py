@@ -1,5 +1,6 @@
 import config
 from items import *
+from select import apply_post
 
 class Searcher():
 
@@ -11,21 +12,24 @@ class Searcher():
     def basic_set(self, dialog):
         self.dialog = dialog
         self.AM = self.ac_machine.match(dialog)
-        self.plus_preprocess()
-        if len(self.rule_trie.need_delete_tags) > 0:
-            self.AM.delete_tag(self.rule_trie.need_delete_tags)
+        special_post = self.special_preprocess()
+        if len(self.rule_trie.keeped_tags) > 0:
+            self.AM.delete_tag(self.rule_trie.keeped_tags)
         self.AM.sorted()
         self.AM.build_word_next_idx(len(dialog))
+        return special_post
 
     def max_match(self, dialog):
-        self.basic_set(dialog)
+        special_post = self.basic_set(dialog)
         conf = config.get_conf(None, "search")
-        return self._greed_match(self.rule_trie.export_trie, conf)
+        match_ans = self._greed_match(self.rule_trie.export_trie, conf)
+        return matched_ans, special_post
         
     def search_match(self, dialog):
-        self.basic_set(dialog)
+        special_post = self.basic_set(dialog)
         conf = config.get_conf(None, "search")
-        return self._search_match(self.rule_trie.export_trie, conf)
+        match_ans = self._search_match(self.rule_trie.export_trie, conf)
+        return matched_ans, special_post
         
     def _search_match(self, fingerprint, conf):
         self.AM.reset()
@@ -140,15 +144,61 @@ class Searcher():
 
         return best_ans
 
-    def plus_preprocess(self):
-        for pname, trie in self.rule_trie.plus_tries:
+    # 特殊规则逐条匹配; 这种规则多了会影响速度， 只做特殊用途
+    # plus可能是指数式复杂度， 但其在语义匹配需求中使用场景不多，大多采用贪心匹配足已
+    # 为了最大化性能， plus采用贪心匹配
+    def special_preprocess(self, dialog):
+        speial_post = {}
+        _, post = self.special_atom_extract(dialog)
+        speial_post.update(post)
+
+        for pname, trie in self.rule_trie.special_tries:
             conf_names = self.rule_info.config.get(pname, [])
-            conf = config.get_confs(conf_names, "plus")
+            rule_tp = self.rule_info.get_rule_type(pname)
+            base_tp = "plus" if rule_tp == "PLUS" else "search"
+            conf = config.get_confs(conf_names, base_tp)
             matched_items = self._greed_match(trie, conf)
             if matched_items:
                 for m in matched_items:  m.cal_index()
-                all_plus = self.plus_extract(matched_items, pname, conf)
-                self.AM.matched.extend(all_plus)
+                if rule_tp == "PLUS":
+                    all_plus, post = self.plus_extract(matched_items, pname, conf)
+                else:
+                    all_plus, post = self.special_rule_extract(matched_items, pname, conf)
+                if all_plus:
+                    speial_post.update(post)
+                    self.AM.matched.extend(all_plus)
+                    self.AM.sorted()
+        return speial_post
+
+    def special_atom_extract(self, dialog):
+        special_atoms = self.rule_info.get_special_atoms()
+        post = {}
+        if special_atoms:
+            for ele in AM.matched:
+                slot_indexes, pfunc, _ = self.rule_info.get(ele.tag)
+                idx_slot_map = {0: dialog[ele.begin: ele.end+1]}
+                slots = apply_post(slot_indexes, pfunc, idx_slot_map)
+
+        return [], post
+
+    ## 合法性判断， 后处理
+    def special_rule_extract(self, lst, rname, conf):
+        tags = []
+        post = {}
+        for c in lst:
+            _, slices, perm = c.tnodes[0]
+            slot_indexes = self.rules_info.slots[rname]
+            slot_indexes, pfunc, _ = self.rules_info.get(rname)
+            if slot_indexes or pfunc:
+                idx_slot_map = get_idx_slot(slices, perm, c.fragments)
+                slots = apply_post(slot_indexes, pfunc, idx_slot_map)
+                if "__MATCH__" not in slots or slots["__MATCH__"] == True:
+                    post[(rname,c.begin, c.end)] = slots
+                    tags.append(AcMatchedGroup(c.begin, c.end, rname, "3"))
+            else:
+                tags.append(AcMatchedGroup(c.begin, c.end, rname, "3"))
+
+        return tags, post
 
     def plus_extract(self, lst, tag, conf):
         ans = []
@@ -165,7 +215,7 @@ class Searcher():
                 cnt += 1
             elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ):
                 if cnt >= conf["min_N"]:
-                    ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2")  )
+                    ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2"))
 
                 p_i = b_i =  i
                 cnt = 1
@@ -173,6 +223,6 @@ class Searcher():
         if len(lst) and cnt >= conf["min_N"]:
             ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2")  )
 
-        return ans
+        return ans, {}
 
 
