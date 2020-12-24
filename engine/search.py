@@ -12,7 +12,7 @@ class Searcher():
     def basic_set(self, dialog):
         self.dialog = dialog
         self.AM = self.ac_machine.match(dialog)
-        special_post = self.special_preprocess()
+        special_post = self.special_preprocess(dialog)
         if len(self.rule_trie.keeped_tags) > 0:
             self.AM.delete_tag(self.rule_trie.keeped_tags)
         self.AM.sorted()
@@ -148,9 +148,9 @@ class Searcher():
     # plus可能是指数式复杂度， 但其在语义匹配需求中使用场景不多，大多采用贪心匹配足已
     # 为了最大化性能， plus采用贪心匹配
     def special_preprocess(self, dialog):
-        speial_post = {}
+        special_post = {}
         _, post = self.special_atom_extract(dialog)
-        speial_post.update(post)
+        special_post.update(post)
 
         for pname, trie in self.rule_trie.special_tries:
             conf_names = self.rule_info.config.get(pname, [])
@@ -165,35 +165,40 @@ class Searcher():
                 else:
                     all_plus, post = self.special_rule_extract(matched_items, pname, conf)
                 if all_plus:
-                    speial_post.update(post)
+                    special_post.update(post)
                     self.AM.matched.extend(all_plus)
                     self.AM.sorted()
-        return speial_post
+        return special_post
 
     def special_atom_extract(self, dialog):
         special_atoms = self.rule_info.get_special_atoms()
         post = {}
-        if special_atoms:
-            for ele in AM.matched:
+        if not special_atoms:
+            return [], post
+
+        for ele in self.AM.matched:
+            if ele.tag in special_atoms:
                 slot_indexes, pfunc, _ = self.rule_info.get(ele.tag)
                 idx_slot_map = {0: dialog[ele.begin: ele.end+1]}
                 slots = apply_post(slot_indexes, pfunc, idx_slot_map)
+                if "__MATCH__" not in slots or slots["__MATCH__"] == True:
+                    post[(ele.tag, ele.start, ele.end)] = slots
+                else:
+                    self.AM.matched.remove(ele)
 
         return [], post
 
     ## 合法性判断， 后处理
     def special_rule_extract(self, lst, rname, conf):
-        tags = []
-        post = {}
+        tags, post = [], {}
         for c in lst:
             _, slices, perm = c.tnodes[0]
-            slot_indexes = self.rules_info.slots[rname]
             slot_indexes, pfunc, _ = self.rules_info.get(rname)
             if slot_indexes or pfunc:
                 idx_slot_map = get_idx_slot(slices, perm, c.fragments)
                 slots = apply_post(slot_indexes, pfunc, idx_slot_map)
                 if "__MATCH__" not in slots or slots["__MATCH__"] == True:
-                    post[(rname,c.begin, c.end)] = slots
+                    post[(rname, c.begin, c.end)] = slots
                     tags.append(AcMatchedGroup(c.begin, c.end, rname, "3"))
             else:
                 tags.append(AcMatchedGroup(c.begin, c.end, rname, "3"))

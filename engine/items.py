@@ -3,7 +3,7 @@ from collections import namedtuple
 ParamItem = namedtuple('ParamItem', ['tp', 'val'])
 TNode = namedtuple('TNode', ['name', 'slices', 'permutation'])
 
-SpecialRulePost = namedtuple('SpecialRulePost', ['tag', 'start', 'end'])
+# SpecialRulePost = namedtuple('SpecialRulePost', ['tag', 'start', 'end'])
 
 """
 tag_type: str

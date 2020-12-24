@@ -27,8 +27,8 @@ def get_idx_slot(slices, perm, matched_frags):
         idx_slot_map[ni] = slot_val
     return idx_slot_map
 
-def apply_post(slot_indexes, pfunc, idx_slot_map):
+def apply_post(slot_indexes, pfunc, idx_slot_map, context = {}):
     slots = extract_slots(slot_indexes, idx_slot_map)
     for fname, params in pfunc.items():
-        post_modules[fname](params, slots, idx_slot_map)
+        post_modules[fname](params, slots, idx_slot_map, context = context)
     return slots
