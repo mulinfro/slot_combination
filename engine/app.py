@@ -32,9 +32,6 @@ class Engine:
         tokens = token_list(script).tokens
         ast_obj = ast.AST(stream(tokens))
         
-        print("ATOM: ", ast_obj.atom)
-        print("PLUS: ", ast_obj.plus)
-
         # 词典文件目录列表， 逗号分开
         all_slot_entity_files = []
         if dict_dir:

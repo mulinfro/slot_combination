@@ -1,11 +1,13 @@
 
 atom xx = xx?
 atom xxx = tx?t|yy
-atom digit = 0|1|2|3|4|5|6|7|8|9 => {__OUT__ = @to_hans($0)}
+#=> {__OUT__ = @to_hans($0)}
+atom digit = 0|1|2|3|4|5|6|7|8|9 
 atom op = 加上?|减去?|乘以?|除去?  
 
 # 所有constant必须在atom中
-atom 多少 = 多少|几 => {__OUT__ = "X"}
+#=> {__OUT__ = "X"}
+atom 多少 = 多少|几 
 plus num = {digit}
 # => {__OUT__ = @trans_digit(), __MATCH__ = @valid_digit() }
 rule expr0 = [{num}, {op}, {num}]  
@@ -27,7 +29,8 @@ export music = <{播放}?, {歌手}, {歌曲}>  => {intent="歌曲", act=$1, who
 export music2 = [{pre}, <{播放}?, [{歌手}, {歌曲}]> ] => {intent="歌曲2", pre=$1, info=$2}
 
 plus op_p = {op} => {@var_plus}
-export test_plus_conf = [{op_p}] => {intent="测试配置", val=$1}
+#export test_plus_conf = [{op_p}] => {intent="测试配置", val=$1}
+export test_plus_conf2 = {op_p} => {intent="测试配置2", val=$0}
 
 
 atom aaa = AAA

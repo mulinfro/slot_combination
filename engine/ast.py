@@ -67,19 +67,17 @@ class RulesInfo():
     def __init__(self):
         self.slots = {}
         self.config = {}
-        self.rule_type = {}
+        self.rule_type = collections.OrderedDict()
         self.post_func = {}
-        # 需要特殊处理的规则： 后处理； 归一化;  特殊配置;  逻辑unit等
-        self.special_handle = collections.OrderedDict()
 
     def add(self, rule_name, slot, pf, confs, rtp):
         self.slots[rule_name] = slot
         self.post_func[rule_name] = pf
         self.config[rule_name] = confs
-        self.rule_type[rule_name] = rtp
 
-        if slot or pf or confs:
-            self.special_handle[rule_name] = rtp
+        # 需要特殊处理的规则： 后处理； 归一化;  特殊配置;  逻辑unit等
+        need_post_handle = (slot or pf or confs)
+        self.rule_type[rule_name] = (rtp, need_post_handle)
 
     def get(self, name):
         slot = self.slots.get(name, {})
@@ -88,34 +86,37 @@ class RulesInfo():
         return (slot, pfunc, conf)
 
     def get_rule_type(self, rname):
-        return self.rule_type[rname]
+        return self.rule_type[rname][0]
 
     def get_special_rules(self):
-        return [v for k,v in self.special_handle.item() if k != "ATOM"]
+        return [k for k,v in self.rule_type.items() if v == ("RULE", True) or v[0] == "PLUS"]
 
     def get_special_atoms(self):
-        return [v for k,v in self.special_handle.item() if k == "ATOM"]
+        return [k for k,v in self.rule_type.items() if v == ("ATOM", True)]
 
     def is_special(self, rname):
-        return rname in self.special_handle
+        return self.rule_type[rname][1]
+
+    def get_rules_by_tp(self, tp):
+        return [k for k,v in self.rule_type.items() if v[0] == tp]
 
 class AST():
 
     def __init__(self, stm):
         self.word_refs = []
-        self.atom = []
-        self.plus = []
-        self.rule = []
-        self.export = []
         self.rules_body = {}
         self.all_rules_info = RulesInfo()
         self.build_ast(stm)
+        self.atom = self.all_rules_info.get_rules_by_tp("ATOM")
 
     def is_special_handle_rule(self, rname):
         return self.all_rules_info.is_special(rname)
 
-    def get_special_handle_rules(self):
-        return self.all_rules_info.get_specials()
+    def get_special_rules(self):
+        return self.all_rules_info.get_special_rules()
+
+    def get_export(self):
+        return self.all_rules_info.get_rules_by_tp("EXPORT")
 
     def build_ast(self, stm):
         while True:
@@ -124,16 +125,12 @@ class AST():
             tkn = stm.peek()
             if tkn.tp == 'EXPORT':
                 val = self.ast_export(stm)
-                self.export.append(val["name"])
             elif tkn.tp == 'RULE':
                 val = self.ast_rule(stm)
-                self.rule.append(val["name"])
             elif tkn.tp == 'ATOM':
                 val = self.ast_atom(stm)
-                self.atom.append(val["name"])
             elif tkn.tp == 'PLUS':
                 val = self.ast_plus(stm)
-                self.plus.append(val["name"])
             else:
                 Error("Unexpeted begining token %s"%tkn.val)
             if val["name"] in self.rules_body:

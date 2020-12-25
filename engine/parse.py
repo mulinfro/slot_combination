@@ -121,21 +121,21 @@ class RuleStructure():
             ptrie, _ = self.build_trie([p])
             special_tries.append((p, ptrie))
 
-        export_trie, export_tags = self.build_trie(self.ast.export)
+        export_trie, export_tags = self.build_trie(self.ast.get_export())
         return RuleTrie(export_trie, special_tries, export_tags), self.ast.all_rules_info
 
     def get_ele_sign(self, rule):
         tp = rule["tp"]
         rname = rule.get("name", None)
-        if rname and self.ast.is_special_handle_rule(rname):
-            return ["3" + rname]
+        if tp == "PLUS":
+            return [rname]
         elif tp == "ATOM":
-            return ["0" + rname]
+            return [rname]
         elif tp == "REF":
-            return ["1" + rname]
-        elif tp == "PLUS":
-            return ["2" + rname]
+            return [rname]
         elif tp == "RULE":
+            if self.ast.is_special_handle_rule(rname):
+                return [rname]
             return self.get_ele_sign(rule["body"])
         elif tp == "OR":
             t = []

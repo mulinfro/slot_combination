@@ -40,7 +40,7 @@ class Selector:
             for name, slices, perm in c.tnodes:
                 slot_indexes = self.rules_info.slots[name]
                 slot_indexes, pfunc, _ = self.rules_info.get(name)
-                idx_slot_map = get_idx_slot(slices, perm, matched_frags)
+                idx_slot_map = get_idx_slot(slices, perm, c.fragments)
                 slots = apply_post(slot_indexes, pfunc, idx_slot_map)
                 diff_slots[name] = slots
             selected.append((c.matched, c.match_score, diff_slots))

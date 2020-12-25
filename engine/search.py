@@ -1,6 +1,6 @@
 import config
 from items import *
-from select import apply_post
+from select import apply_post, get_idx_slot
 
 class Searcher():
 
@@ -17,18 +17,19 @@ class Searcher():
             self.AM.delete_tag(self.rule_trie.keeped_tags)
         self.AM.sorted()
         self.AM.build_word_next_idx(len(dialog))
+        #print(self.AM.matched)
         return special_post
 
     def max_match(self, dialog):
         special_post = self.basic_set(dialog)
         conf = config.get_conf(None, "search")
-        match_ans = self._greed_match(self.rule_trie.export_trie, conf)
+        matched_ans = self._greed_match(self.rule_trie.export_trie, conf)
         return matched_ans, special_post
         
     def search_match(self, dialog):
         special_post = self.basic_set(dialog)
         conf = config.get_conf(None, "search")
-        match_ans = self._search_match(self.rule_trie.export_trie, conf)
+        matched_ans = self._search_match(self.rule_trie.export_trie, conf)
         return matched_ans, special_post
         
     def _search_match(self, fingerprint, conf):
@@ -37,7 +38,7 @@ class Searcher():
         has_seen = set()
         for i in range(len(self.AM.matched)):
             ele = self.AM.iter_init_status(i)
-            tp = "%s#%s%s"%("", ele.tag_type, ele.tag)
+            tp = "%s#%s"%("", ele.tag)
             if tp in fingerprint:
                 head_ele = ((ele.start, ele.end), )
                 matched_ans = self._search_match_helper(tp, head_ele, fingerprint, has_seen, conf)
@@ -68,7 +69,7 @@ class Searcher():
                 if self.AM.get_word_dist(ele.start) > conf["max_dist"]:
                     break
 
-                new_tp = "%s#%s%s"%(tp, ele.tag_type, ele.tag)
+                new_tp = "%s#%s"%(tp, ele.tag)
                 search_step_fingerprint = "%d&%s"%(self.AM._i, new_tp)
                 if search_step_fingerprint in has_seen: continue
 
@@ -107,7 +108,7 @@ class Searcher():
         all_matched = []
         for i in range(len(self.AM.matched)):
             ele = self.AM.iter_init_status(i)
-            tp = "%s#%s%s"%("", ele.tag_type, ele.tag)
+            tp = "%s#%s"%("", ele.tag)
             if tp in fingerprint:
                 head_ele = ((ele.start, ele.end), )
                 matched_ans = self._greed_match_helper(tp, head_ele, fingerprint, conf)
@@ -132,7 +133,7 @@ class Searcher():
                 #if self.get_word_dist(ele[0]) > self.conf.max_match_dist:
                 #    break
 
-                new_tp = "%s#%s%s"%(tp, ele.tag_type, ele.tag)
+                new_tp = "%s#%s"%(tp, ele.tag)
                 if new_tp in fingerprint:
                     self.AM.accept(ele)
                     is_accept = True
@@ -159,7 +160,7 @@ class Searcher():
             conf = config.get_confs(conf_names, base_tp)
             matched_items = self._greed_match(trie, conf)
             if matched_items:
-                for m in matched_items:  m.cal_index()
+                for m in matched_items:  m.cal_match_score(dialog)
                 if rule_tp == "PLUS":
                     all_plus, post = self.plus_extract(matched_items, pname, conf)
                 else:
@@ -179,7 +180,7 @@ class Searcher():
         for ele in self.AM.matched:
             if ele.tag in special_atoms:
                 slot_indexes, pfunc, _ = self.rule_info.get(ele.tag)
-                idx_slot_map = {0: dialog[ele.begin: ele.end+1]}
+                idx_slot_map = {0: dialog[ele.start: ele.end+1]}
                 slots = apply_post(slot_indexes, pfunc, idx_slot_map)
                 if "__MATCH__" not in slots or slots["__MATCH__"] == True:
                     post[(ele.tag, ele.start, ele.end)] = slots
@@ -193,7 +194,7 @@ class Searcher():
         tags, post = [], {}
         for c in lst:
             _, slices, perm = c.tnodes[0]
-            slot_indexes, pfunc, _ = self.rules_info.get(rname)
+            slot_indexes, pfunc, _ = self.rule_info.get(rname)
             if slot_indexes or pfunc:
                 idx_slot_map = get_idx_slot(slices, perm, c.fragments)
                 slots = apply_post(slot_indexes, pfunc, idx_slot_map)
