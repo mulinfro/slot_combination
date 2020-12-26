@@ -164,7 +164,7 @@ class Searcher():
                 if rule_tp == "PLUS":
                     all_plus, post = self.plus_extract(matched_items, pname, conf)
                 else:
-                    all_plus, post = self.special_rule_extract(matched_items, pname, conf)
+                    all_plus, post = self.special_rule_extract(matched_items, pname, conf, special_post)
                 if all_plus:
                     special_post.update(post)
                     self.AM.matched.extend(all_plus)
@@ -190,13 +190,13 @@ class Searcher():
         return [], post
 
     ## 合法性判断， 后处理
-    def special_rule_extract(self, lst, rname, conf):
+    def special_rule_extract(self, lst, rname, conf, special_post):
         tags, post = [], {}
         for c in lst:
             _, slices, perm = c.tnodes[0]
             slot_indexes, pfunc, _ = self.rule_info.get(rname)
             if slot_indexes or pfunc:
-                idx_slot_map = get_idx_slot(slices, perm, c.fragments)
+                idx_slot_map = get_idx_slot(slices, perm, c.fragments, special_post)
                 slots = apply_post(slot_indexes, pfunc, idx_slot_map)
                 if "__MATCH__" not in slots or slots["__MATCH__"] == True:
                     post[(rname, c.begin, c.end)] = slots

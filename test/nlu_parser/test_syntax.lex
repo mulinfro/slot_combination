@@ -1,13 +1,13 @@
 
 atom xx = xx?
 atom xxx = tx?t|yy
-#=> {__OUT__ = @to_hans($0)}
-atom digit = 0|1|2|3|4|5|6|7|8|9 
+#
+atom digit = 0|1|2|3|4|5|6|7|8|9 => {__OUT__ = @to_hans($0)}
 atom op = 加上?|减去?|乘以?|除去?  
 
 # 所有constant必须在atom中
-#=> {__OUT__ = "X"}
-atom 多少 = 多少|几 
+#
+atom 多少 = 多少|几 => {__OUT__ = "X"}
 plus num = {digit}
 # => {__OUT__ = @trans_digit(), __MATCH__ = @valid_digit() }
 rule expr0 = [{num}, {op}, {num}]  
