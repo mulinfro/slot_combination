@@ -20,6 +20,7 @@ atom 知不知道 = 你?知道|你?知不知道
 export calculator1=[{expr0}, {知不知道}?, {多少}? ] => {intent="表达式1", expr = $1, x = $3 }
 
 #rule any = __ANY__(1,9)
+#rule any = ${__ANY__}  => {@any_conf1}
 
 atom 播放=播放?|放 
 atom 歌手 = 刘德华|周杰伦|王菲

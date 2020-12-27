@@ -49,19 +49,43 @@ class Searcher():
 
         return all_matched
 
-    def path_valid_check(self, path_sign, fingerprint):
-        if path_sign not in fingerprint:
-            return false
-
-
     # 对规则的最长匹配
     def _search_match_helper(self, tp, matched_eles, fingerprint, has_seen, conf):
         best_ans = []
         stack = [(tp, self.AM.save_state(), matched_eles)]
+
+        def __search_helper(new_tp, new_matched_eles, new_state):
+            search_step_fingerprint = "%d&%s"%(new_state[0], new_tp)
+            if search_step_fingerprint in has_seen: continue
+            has_seen.add(search_step_fingerprint)
+
+            if new_tp in fingerprint:
+                if fingerprint[new_tp].isLeaf():
+                    best_ans.append(MatchedItem(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
+
+                stack.append((new_tp, new_state, new_matched_eles))
+
         while len(stack):
             tp, state, matched_eles = stack.pop(0)
             self.AM.restore_state(state)
             is_accept = False
+
+            if fingerprint[tp].is_next_any():
+                i = 1
+                any_list = fingerprint[tp].anys
+                while True:
+                    ele = self.AM.look_next(i)
+                    if ele is None: break
+                    d = self.AM.get_word_dist(ele.start)
+                    for any_pat in any_list:
+                        if any_pat.is_valid(d):
+                            new_tp = "%s#%s#%s"%(tp, any_pat.to_pat(), ele.tag)
+                            new_state = (self.AM._i + i, ele.end)
+                            new_matched_eles = matched_eles + ((ele.start - d, ele.start - 1), (ele.start, ele.end))
+                            __search_helper(new_tp, new_matched_eles, new_state)
+
+                    i += 1
+
             while not is_accept and self.AM.has_next():
                 ele = self.AM.get_next()
 
@@ -70,6 +94,12 @@ class Searcher():
                     break
 
                 new_tp = "%s#%s"%(tp, ele.tag)
+                new_matched_eles = matched_eles + ((ele.start, ele.end),)
+                new_state = (self.AM._i, ele.end)
+                __search_helper(new_tp, new_matched_eles, new_state)
+
+
+
                 search_step_fingerprint = "%d&%s"%(self.AM._i, new_tp)
                 if search_step_fingerprint in has_seen: continue
 

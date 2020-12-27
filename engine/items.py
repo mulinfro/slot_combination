@@ -14,6 +14,25 @@ tag_type: str
 """
 AcMatchedGroup = namedtuple('AcMatchedGroup', ['start', 'end', 'tag', 'tag_type'])
 
+class AnyPat:
+
+    def __init__(self, min_span, max_span):
+        self.min_span = min_span
+        self.max_span = max_span
+
+    def is_valid(self, n):
+        if n >= self.min_span:
+            if self.max_span < 0:
+                return True
+            else:
+                return n <= self.max_span
+
+    def to_pat(self):
+        return "__ANY__:%d:%d":(self.min_span, self.max_span)
+
+    def equal(self, min_s, max_s):
+        return self.min_span == min_s and self.max_span == max_s
+
 class MatchedItem:
 
     def __init__(self, tagkey, fragments, tnodes):

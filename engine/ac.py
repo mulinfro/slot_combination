@@ -67,6 +67,11 @@ class AcMatcher():
             self._i += 1
             return self.matched[self._i - 1]
 
+    def look_next(self, t):
+        j = self._i + t - 1
+        if j >= len(self.matched): return None
+        return self.matched[j]
+
     def get_next(self):
         self.skip_unaccept()
         #if self._i < len(self.matched):

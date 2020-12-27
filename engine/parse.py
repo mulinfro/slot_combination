@@ -1,9 +1,9 @@
 
-from items import TNode
+from items import TNode, AnyPat
 
 def count_tag_num(e):
     if not e: t = 0
-    else:     t = e.count("#") + 1
+    else:     t = e.strip("#").count("#") + 1
     return t
 
 def get_list_product_with_slices(lst_of_lst, perm = None):
@@ -61,6 +61,7 @@ class TrieNodeInfo():
     def __init__(self):
         self.match_list = []
         self.leafFlag = False
+        self.anys = []
 
     def isLeaf(self):
         return self.leafFlag
@@ -86,6 +87,13 @@ class TrieNodeInfo():
 
     def setLeaf(self, flag = True):
         self.leafFlag =  flag
+
+    def addAny(self, min_span, max_span):
+        if not any(map(lambda a: a.equal(min_span, max_span), self.anys)):
+            self.anys.append(AnyPat(min_span, max_span))
+
+    def is_next_any(self):
+        return len(self.anys) > 0
 
     def addRule(self, name, slices, permutation):
         tn = TNode(name = name, slices = slices, permutation = permutation)
@@ -133,6 +141,9 @@ class RuleStructure():
             return [rname]
         elif tp == "REF":
             return [rname]
+        elif tp == "__ANY__":
+            tag = "%s:%d:%d"%(rule["tp"], rule["min_span"], rule["max_span"])
+            return [tag]
         elif tp == "RULE":
             if self.ast.is_special_handle_rule(rname):
                 return [rname]
@@ -183,7 +194,10 @@ class RuleStructure():
                 eles = r.strip("#").split("#")
                 sub_ele = ""
                 for ele in eles:
-                    all_tags.add(ele.lstrip("012345"))
+                    all_tags.add(ele)
+                    if ele.startswith("__ANY__"):
+                        any_sp = ele.split(":")
+                        ans[sub_ele].addAny(int(any_sp[1]), int(any_sp[1]))
                     sub_ele += "#" + ele
                     if sub_ele not in ans:
                         ans[sub_ele] = TrieNodeInfo()

@@ -231,6 +231,17 @@ class AST():
         else:
             return eles[0]
 
+    def ast_builtin_pattern(self, stm):
+        tkn = stm.next()
+        if tkn.tp == "__ANY__":
+            syntax_cond_assert(not stm.eof() and stm.peek().tp == "PARN", "__ANY__ need range, eg: __ANY__(1,5)")
+            p_stm = stream(stm.next().val)
+            paras = self.get_processer_paras(p_stm)
+            syntax_cond_assert(len(paras) == 2, "__ANY__ need min_span and max_span, eg: __ANY__(1,5)")
+            return {"tp": "__ANY__", "min_span": paras[0].val, "max_span": paras[1].val}
+        else:
+            Error("Unsuppoert builtin pattern: %s"%tkn.tp)
+
     def ast_rule_body(self, stm):
         tp = stm.peek().tp
         if tp == "LIST":
@@ -241,6 +252,8 @@ class AST():
             return self.ast_list_helper(stream(tkn.val), tp)
         elif tp == "DICT":
             return self.ast_try_or_ele(stm)
+        elif tp.sartswith("__"):
+            return self.ast_builtin_pattern(stm)
         else:
             Error("undefined rule body type %s"%str(stm.peek()))
 
@@ -273,7 +286,7 @@ class AST():
         elif tkn == ("OP", "$"):
             t = stm.next()
             #syntax_assert(t, "STR", "expected num")
-            syntax_cond_assert(t.tp == "STR" and t.val.isnumeric(), "expected num")
+            syntax_cond_assert(t.tp == "NUM", "expected num")
             return ParamItem("VAR", int(t.val))
         else:
             Error("processer error %s"%(str(tkn)))
