@@ -70,7 +70,6 @@ class Searcher:
             is_accept = False
 
             if fingerprint[tp].is_next_any():
-                print("MATCH ANY")
                 i = 1
                 any_list = fingerprint[tp].anys
                 while True:
