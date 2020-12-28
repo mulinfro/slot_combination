@@ -19,7 +19,7 @@ atom 知不知道 = 你?知道|你?知不知道
 
 export calculator1=[{expr0}, {知不知道}?, {多少}? ] => {intent="表达式1", expr = $1, x = $3 }
 
-#rule any = __ANY__(1,9)
+rule any = __ANY__(1,9)
 #rule any = ${__ANY__}  => {@any_conf1}
 
 atom 播放=播放?|放 
@@ -33,8 +33,10 @@ plus op_p = {op} => {@var_plus}
 #export test_plus_conf = [{op_p}] => {intent="测试配置", val=$1}
 export test_plus_conf2 = {op_p} => {intent="测试配置2", val=$0}
 
-
 atom aaa = AAA
 atom aa = AA
+export test_any = [{aa}, {any}, {aaa}] => {intent="测试any", val=$2}
+
+
 
 #<bb, bbb>?
