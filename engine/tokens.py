@@ -1,5 +1,5 @@
 
-from builtin import op_type, keywords, op_alp, op_info
+from builtin import keywords, op_alp, op_info
 from syntax_check import *
 
 class token():
@@ -18,6 +18,7 @@ class token():
     def __repr__(self):
         return ("type:%s; val %s; line %d col %d") %(self.tp, self.val, self.line, self.col)
 
+escape_table = {}
 
 def num(s):
     try:
@@ -25,7 +26,7 @@ def num(s):
     except ValueError:
         return float(s)
 
-class token_list():
+class token_list:
     def __init__(self, chars):
         self.chars = chars
         self.pre_token = token("SEP", "NEWLINE")
@@ -49,7 +50,7 @@ class token_list():
         elif ch == '[': tkn = self.read_list_f()
         elif ch == '{': tkn = self.read_hashmap()
         elif ch == '(': tkn = self.read_parn()
-        elif str.isdigit(ch): tkn = self.read_num()
+        #elif str.isdigit(ch): tkn = self.read_num()
         elif ch in op_alp: tkn = self.read_op()
         elif ch in ',\n;':     tkn = self.read_sep()
         else: tkn = self.read_var()

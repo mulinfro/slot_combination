@@ -1,7 +1,6 @@
 import config, util
-from post_register import post_modules
-from syntax_check import Error
 from post_handle import apply_post, get_idx_slot
+
 
 class Selector:
 
@@ -15,14 +14,9 @@ class Selector:
         intervals = [(items[0].begin, items[0].end)]
         if multi:
             for item in items:
-                flag = True
-                for interval in intervals:
-                    if util.interval_cover((item.begin, item.end), intervals):
-                        flag = False
-                        break
-                if flag:
+                if not util.interval_cover((item.begin, item.end), intervals):
                     ans.append(item)
-                    intervals.append((item.begin, item.end)) 
+                    intervals.append((item.begin, item.end))
 
         return ans
 
@@ -38,7 +32,6 @@ class Selector:
         for c in candicates:
             diff_slots = {}
             for name, slices, perm in c.tnodes:
-                slot_indexes = self.rules_info.slots[name]
                 slot_indexes, pfunc, _ = self.rules_info.get(name)
                 idx_slot_map = get_idx_slot(slices, perm, c.fragments, self.special_post)
                 slots = apply_post(slot_indexes, pfunc, idx_slot_map)

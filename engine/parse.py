@@ -57,7 +57,7 @@ def get_set_product_with_slices(lst_of_lst):
 
 
 
-class TrieNodeInfo():
+class TrieNodeInfo:
     def __init__(self):
         self.match_list = []
         self.leafFlag = False
@@ -96,7 +96,7 @@ class TrieNodeInfo():
         return len(self.anys) > 0
 
     def addRule(self, name, slices, permutation):
-        tn = TNode(name = name, slices = slices, permutation = permutation)
+        tn = TNode(name=name, slices=slices, permutation=permutation)
         self.setLeaf()
         for n in self.match_list:
             if self.isSameNode(n, tn):
@@ -105,13 +105,13 @@ class TrieNodeInfo():
         self.match_list.append(tn)
 
 # Trie implement by hashtable
-class RuleTrie():
+class RuleTrie:
     def __init__(self, export_trie, special_tries, keeped_tags):
         self.export_trie = export_trie
         self.special_tries = special_tries
         self.keeped_tags = keeped_tags
 
-class RuleStructure():
+class RuleStructure:
 
     def __init__(self, ast):
         self.ast = ast
@@ -173,10 +173,10 @@ class RuleStructure():
             rule = self.rules_body[nm]["body"]
             tp = rule["tp"]
             if tp == "LIST":
-                t = [ self.get_ele_sign(ele) for ele in rule["body"]]
+                t = [self.get_ele_sign(ele) for ele in rule["body"]]
                 ele_sign = get_list_product_with_slices(t)
             elif tp == "ANGLE":
-                t = [ self.get_ele_sign(ele) for ele in rule["body"]]
+                t = [self.get_ele_sign(ele) for ele in rule["body"]]
                 ele_sign = get_set_product_with_slices(t)
             else:
                 ele_sign_parts = self.get_ele_sign(rule)
@@ -197,7 +197,7 @@ class RuleStructure():
                     all_tags.add(ele)
                     if ele.startswith("__ANY__"):
                         any_sp = ele.split(":")
-                        ans[sub_ele].addAny(int(any_sp[1]), int(any_sp[1]))
+                        ans[sub_ele].addAny(int(any_sp[1]), int(any_sp[2]))
                     sub_ele += "#" + ele
                     if sub_ele not in ans:
                         ans[sub_ele] = TrieNodeInfo()

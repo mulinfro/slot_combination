@@ -28,7 +28,7 @@ class AnyPat:
                 return n <= self.max_span
 
     def to_pat(self):
-        return "__ANY__:%d:%d":(self.min_span, self.max_span)
+        return "__ANY__:%d:%d"%(self.min_span, self.max_span)
 
     def equal(self, min_s, max_s):
         return self.min_span == min_s and self.max_span == max_s

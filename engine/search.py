@@ -1,8 +1,8 @@
 import config
 from items import *
-from select import apply_post, get_idx_slot
+from post_handle import apply_post, get_idx_slot
 
-class Searcher():
+class Searcher:
 
     def __init__(self, rule_trie, rule_info, ac_machine):
         self.rule_trie = rule_trie
@@ -10,7 +10,6 @@ class Searcher():
         self.ac_machine = ac_machine
 
     def basic_set(self, dialog):
-        self.dialog = dialog
         self.AM = self.ac_machine.match(dialog)
         special_post = self.special_preprocess(dialog)
         if len(self.rule_trie.keeped_tags) > 0:
@@ -56,7 +55,7 @@ class Searcher():
 
         def __search_helper(new_tp, new_matched_eles, new_state):
             search_step_fingerprint = "%d&%s"%(new_state[0], new_tp)
-            if search_step_fingerprint in has_seen: continue
+            if search_step_fingerprint in has_seen: return
             has_seen.add(search_step_fingerprint)
 
             if new_tp in fingerprint:
@@ -71,6 +70,7 @@ class Searcher():
             is_accept = False
 
             if fingerprint[tp].is_next_any():
+                print("MATCH ANY")
                 i = 1
                 any_list = fingerprint[tp].anys
                 while True:
@@ -98,38 +98,13 @@ class Searcher():
                 new_state = (self.AM._i, ele.end)
                 __search_helper(new_tp, new_matched_eles, new_state)
 
-
-
-                search_step_fingerprint = "%d&%s"%(self.AM._i, new_tp)
-                if search_step_fingerprint in has_seen: continue
-
-                has_seen.add(search_step_fingerprint)
-                if new_tp in fingerprint:
-                    #self.AM.accept(ele)
-                    #is_accept = True
-
-                    # fingerprint[new_tp]
-                    new_matched_eles = matched_eles + ((ele.start, ele.end),)
-                    # simple
-                    # new_matched_eles = self.merge_ele(matched_eles, ele[0], ele[1] )
-                    if fingerprint[new_tp].isLeaf():
-                        best_ans.append(MatchedItem(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
-                        # 到达最后一个且匹配到就没要再搜索下去
-                        #print(ele, new_matched_eles)
-                        """
-                        print(ele, new_matched_eles)
-                        if not self.AM.has_next(): 
-                            print("NO HEAS")
-                            return best_ans
-                        """
-
-                    stack.append((new_tp, (self.AM._i, ele.end), new_matched_eles ) )
-                elif conf["no_skip_atom"] and ele.tag_type in "0":
-                    break_flag = True
-                    # 中间有atom， 且不准跨越atom
-                    break
-                elif conf["no_skip_any"]:
-                    break
+                if new_tp not in fingerprint:
+                    if conf["no_skip_atom"] and ele.tag_type in "0":
+                        break_flag = True
+                        # 中间有atom， 且不准跨越atom
+                        break
+                    elif conf["no_skip_any"]:
+                        break
 
         return best_ans
 
@@ -199,6 +174,8 @@ class Searcher():
                     special_post.update(post)
                     self.AM.matched.extend(all_plus)
                     self.AM.sorted()
+
+        print("PPPP------", special_post)
         return special_post
 
     def special_atom_extract(self, dialog):
@@ -242,22 +219,22 @@ class Searcher():
         cnt = 1
         for i in range(1, len(lst)):
             start, end = lst[i].begin, lst[i].end
-            pre_end= lst[p_i].end
+            pre_end = lst[p_i].end
             if end <= pre_end: continue
 
             m_dist = start - pre_end
             if m_dist > 0 and m_dist <= conf["max_dist"] + 1:
                 p_i = i
                 cnt += 1
-            elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"] ):
+            elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"]):
                 if cnt >= conf["min_N"]:
                     ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2"))
 
-                p_i = b_i =  i
+                p_i = b_i = i
                 cnt = 1
 
         if len(lst) and cnt >= conf["min_N"]:
-            ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2")  )
+            ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2"))
 
         return ans, {}
 

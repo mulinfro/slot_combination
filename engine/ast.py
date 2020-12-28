@@ -1,5 +1,4 @@
 
-from builtin import op_type, op_funcs
 from syntax_check import *
 from stream import stream
 from post_register import post_modules
@@ -62,7 +61,7 @@ def get_cross_ele(lst, all_sets, i):
     return get_cross_ele(lst, ans, i + 1)
 
 
-class RulesInfo():
+class RulesInfo:
 
     def __init__(self):
         self.slots = {}
@@ -76,7 +75,7 @@ class RulesInfo():
         self.config[rule_name] = confs
 
         # 需要特殊处理的规则： 后处理； 归一化;  特殊配置;  逻辑unit等
-        need_post_handle = (slot or pf or confs)
+        need_post_handle = True if (slot or pf or confs) else False
         self.rule_type[rule_name] = (rtp, need_post_handle)
 
     def get(self, name):
@@ -89,18 +88,19 @@ class RulesInfo():
         return self.rule_type[rname][0]
 
     def get_special_rules(self):
-        return [k for k,v in self.rule_type.items() if v == ("RULE", True) or v[0] == "PLUS"]
+        return [k for k, v in self.rule_type.items() if v == ("RULE", True) or v[0] == "PLUS"]
 
     def get_special_atoms(self):
-        return [k for k,v in self.rule_type.items() if v == ("ATOM", True)]
+        return [k for k, v in self.rule_type.items() if v == ("ATOM", True)]
 
     def is_special(self, rname):
         return self.rule_type[rname][1]
 
     def get_rules_by_tp(self, tp):
-        return [k for k,v in self.rule_type.items() if v[0] == tp]
+        return [k for k, v in self.rule_type.items() if v[0] == tp]
 
-class AST():
+
+class AST:
 
     def __init__(self, stm):
         self.word_refs = []
@@ -192,7 +192,7 @@ class AST():
                 syntax_check(stm.next(), ("SEP", "COMMA"))
             if stm.eof(): break
         syntax_cond_assert(len(body) >= 1, "empty parn")
-        return {"tp":tp, "body": body }
+        return {"tp":tp, "body": body}
 
     def ast_dict_ele(self, stm):
         tkn = stm.next()
@@ -210,7 +210,7 @@ class AST():
             return {"tp":"REF", "name": name}
         else:
             if name not in self.rules_body: Error("Undefined %s"%name)
-            return {"tp":"VAR", "name": name} #self.ast[name]
+            return {"tp":"VAR", "name": name}
 
     def ast_try_or_ele(self, stm):
         eles = [self.ast_dict_ele(stream(stm.next().val)) ]
@@ -238,7 +238,7 @@ class AST():
             p_stm = stream(stm.next().val)
             paras = self.get_processer_paras(p_stm)
             syntax_cond_assert(len(paras) == 2, "__ANY__ need min_span and max_span, eg: __ANY__(1,5)")
-            return {"tp": "__ANY__", "min_span": paras[0].val, "max_span": paras[1].val}
+            return {"tp": "__ANY__", "min_span": int(paras[0].val), "max_span": int(paras[1].val)}
         else:
             Error("Unsuppoert builtin pattern: %s"%tkn.tp)
 
@@ -252,7 +252,7 @@ class AST():
             return self.ast_list_helper(stream(tkn.val), tp)
         elif tp == "DICT":
             return self.ast_try_or_ele(stm)
-        elif tp.sartswith("__"):
+        elif tp.startswith("__"):
             return self.ast_builtin_pattern(stm)
         else:
             Error("undefined rule body type %s"%str(stm.peek()))
@@ -281,12 +281,12 @@ class AST():
 
     def ast_processer_para(self, stm):
         tkn = stm.next()
-        if tkn.tp in ["STRING", "NUM"]:
+        if tkn.tp in ["STRING", "STR"]:
             return ParamItem(tkn.tp, tkn.val)
         elif tkn == ("OP", "$"):
             t = stm.next()
             #syntax_assert(t, "STR", "expected num")
-            syntax_cond_assert(t.tp == "NUM", "expected num")
+            #syntax_cond_assert(t.tp == "NUM", "expected num")
             return ParamItem("VAR", int(t.val))
         else:
             Error("processer error %s"%(str(tkn)))
@@ -352,7 +352,6 @@ class AST():
 
                 if not nstm.eof():
                     syntax_assert(nstm.next(), ("SEP", "COMMA"), "")
-
 
         return post_func, slots, conf_names
             

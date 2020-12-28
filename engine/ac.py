@@ -1,7 +1,8 @@
 import ahocorasick
 from items import AcMatchedGroup
 
-class AcMatcher():
+
+class AcMatcher:
     def __init__(self, a, b):
         self.matched = a
         self.sorted()
@@ -85,7 +86,7 @@ class AcMatcher():
         return new_idx - self.accept_endidx - 1
 
 
-class AC():
+class AC:
     def __init__(self):
         self.keyword_ac = None
         self.slot_ac = None

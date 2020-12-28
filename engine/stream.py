@@ -1,5 +1,5 @@
 from syntax_check import Error
-class stream():
+class stream:
     
     def __init__(self, lst, pos=0):
         self._stream = lst

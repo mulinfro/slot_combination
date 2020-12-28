@@ -25,6 +25,7 @@ user_defined_config = {
     "var_plus" : {"max_dist": 3},
 }
 
+
 def get_base_conf(tp):
     tp = tp.lower()
     if tp == "plus":
@@ -33,6 +34,7 @@ def get_base_conf(tp):
         return __search
     else:
         return None
+
 
 def get_conf(name, tp):
     base = get_base_conf(tp)
@@ -46,6 +48,7 @@ def get_conf(name, tp):
     nconf = user_defined_config.get(name)
     ans.update(nconf)
     return ans
+
 
 def get_confs(conf_names, tp):
     base = get_base_conf(tp)

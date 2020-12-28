@@ -1,11 +1,12 @@
 
 from stream import stream, char_stream
-import ast, parse, ac, config, search
+import ast, parse, ac, search
 from tokens import token_list
 import glob, os
 from syntax_check import syntax_cond_assert
 import time
-from select import Selector
+from selector import Selector
+
 
 def read_lex(lex_file):
     if os.path.isdir(lex_file):
@@ -54,6 +55,7 @@ class Engine:
         matched_items, special_post = self.searcher.search_match(query)
         sel = Selector(matched_items, special_post, self.rule_info)
         return sel.apply(query)
+
 
 def run(lex_file, in_str, in_file, dict_dir):
     engine = Engine(lex_file, dict_dir)
