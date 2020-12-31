@@ -33,6 +33,12 @@ class AnyPat:
     def equal(self, min_s, max_s):
         return self.min_span == min_s and self.max_span == max_s
 
+    def get_max_dist(self, cur, maxl):
+        if self.max_span < 0:
+            return maxl
+        else:
+            return min(cur + self.max_span, maxl)
+
 class MatchedItem:
 
     def __init__(self, tagkey, fragments, tnodes):

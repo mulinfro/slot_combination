@@ -15,7 +15,7 @@ class Searcher:
         if len(self.rule_trie.keeped_tags) > 0:
             self.AM.delete_tag(self.rule_trie.keeped_tags)
         self.AM.sorted()
-        self.AM.build_word_next_idx(len(dialog))
+        self.AM.build_word_next_idx()
         #print(self.AM.matched)
         return special_post
 
@@ -36,22 +36,16 @@ class Searcher:
         all_matched = []
         has_seen = set()
         for i in range(len(self.AM.matched)):
-            ele = self.AM.iter_init_status(i)
-            tp = "%s#%s"%("", ele.tag)
-            if tp in fingerprint:
-                head_ele = ((ele.start, ele.end), )
-                matched_ans = self._search_match_helper(tp, head_ele, fingerprint, has_seen, conf)
-                if matched_ans:
-                    all_matched.extend(matched_ans)
-                elif fingerprint[tp].isLeaf():
-                    all_matched.append(MatchedItem(tp, head_ele, fingerprint[tp].match_list))
+            matched_ans = self._search_match_helper(i, fingerprint, has_seen, conf)
+            all_matched.extend(matched_ans)
 
         return all_matched
 
     # 对规则的最长匹配
-    def _search_match_helper(self, tp, matched_eles, fingerprint, has_seen, conf):
+    def _search_match_helper(self, i, fingerprint, has_seen, conf):
+        self.AM.iter_init(i)
         best_ans = []
-        stack = [(tp, self.AM.save_state(), matched_eles)]
+        stack = [("", self.AM.get_state(), tuple())]
 
         def __search_helper(new_tp, new_matched_eles, new_state):
             search_step_fingerprint = "%d&%s"%(new_state[0], new_tp)
@@ -66,13 +60,23 @@ class Searcher:
 
         while len(stack):
             tp, state, matched_eles = stack.pop(0)
-            self.AM.restore_state(state)
-            is_accept = False
+            self.AM.reset_state(state)
 
             if fingerprint[tp].is_next_any():
-                i = 1
                 any_list = fingerprint[tp].anys
-                while True:
+
+                # 如果最后是__ANY__
+                for any_pat in any_list:
+                    new_tp = "%s#%s"%(tp, any_pat.to_pat())
+                    search_step_fingerprint = "%d&%s"%(state[0], new_tp)
+                    if search_step_fingerprint in has_seen: continue
+                    has_seen.add(search_step_fingerprint)
+                    if new_tp in fingerprint and fingerprint[new_tp].isLeaf():
+                        new_matched_eles = matched_eles + ((state[1] + 1, any_pat.get_max_dist(state[1], self.AM.dialog_length)),)
+                        best_ans.append(MatchedItem(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
+
+                # 查询中间是__ANY__
+                for i in range(1, 25):
                     ele = self.AM.look_next(i)
                     if ele is None: break
                     d = self.AM.get_word_dist(ele.start)
@@ -83,9 +87,8 @@ class Searcher:
                             new_matched_eles = matched_eles + ((ele.start - d, ele.start - 1), (ele.start, ele.end))
                             __search_helper(new_tp, new_matched_eles, new_state)
 
-                    i += 1
 
-            while not is_accept and self.AM.has_next():
+            while self.AM.has_next():
                 ele = self.AM.get_next()
 
                 # 大于限定距离; break
@@ -97,7 +100,7 @@ class Searcher:
                 new_state = (self.AM._i, ele.end)
                 __search_helper(new_tp, new_matched_eles, new_state)
 
-                if new_tp not in fingerprint:
+                if new_tp not in fingerprint and len(matched_eles) > 0:
                     if conf["no_skip_atom"] and ele.tag_type in "0":
                         break_flag = True
                         # 中间有atom， 且不准跨越atom
@@ -111,26 +114,20 @@ class Searcher:
         self.AM.reset()
         all_matched = []
         for i in range(len(self.AM.matched)):
-            ele = self.AM.iter_init_status(i)
-            tp = "%s#%s"%("", ele.tag)
-            if tp in fingerprint:
-                head_ele = ((ele.start, ele.end), )
-                matched_ans = self._greed_match_helper(tp, head_ele, fingerprint, conf)
-                if matched_ans:
-                    all_matched.extend(matched_ans)
-                elif fingerprint[tp].isLeaf():
-                    all_matched.append(MatchedItem(tp, head_ele, fingerprint[tp].match_list))
+            matched_ans = self._greed_match_helper(i, fingerprint, conf)
+            all_matched.extend(matched_ans)
 
         return all_matched
 
 
     # 对规则的最长匹配
-    def _greed_match_helper(self, tp, matched_eles, fingerprint, conf):
+    def _greed_match_helper(self, i, fingerprint, conf):
+        self.AM.iter_init(i)
         best_ans = []
-        stack = [(tp, self.AM.save_state(), matched_eles)]
+        stack = [("", self.AM.get_state(), tuple())]
         while len(stack):
             tp, state, matched_eles = stack.pop(0)
-            self.AM.restore_state(state)
+            self.AM.reset_state(state)
             is_accept = False
             while not is_accept and self.AM.has_next():
                 ele = self.AM.get_next()
@@ -145,7 +142,7 @@ class Searcher:
                     # simple
                     if fingerprint[new_tp].isLeaf():
                         best_ans.append(MatchedItem(new_tp, new_matched_eles, fingerprint[new_tp].match_list))
-                    stack.append((new_tp, self.AM.save_state(), new_matched_eles ))
+                    stack.append((new_tp, self.AM.get_state(), new_matched_eles ))
 
         return best_ans
 
@@ -174,7 +171,6 @@ class Searcher:
                     self.AM.matched.extend(all_plus)
                     self.AM.sorted()
 
-        print("PPPP------", special_post)
         return special_post
 
     def special_atom_extract(self, dialog):

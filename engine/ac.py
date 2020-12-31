@@ -3,13 +3,14 @@ from items import AcMatchedGroup
 
 
 class AcMatcher:
-    def __init__(self, a, b):
+    def __init__(self, a, b, l):
         self.matched = a
         self.sorted()
         self.word_tag_index = b
         self.word_next_idx = []
         self._i = 0
         self.accept_endidx = -1
+        self.dialog_length = l
 
     def sorted(self):
         self.matched.sort(key = lambda x: (x.start, -x.end))
@@ -17,10 +18,10 @@ class AcMatcher:
     def delete_tag(self, keeped_tags):
         self.matched = [m for m in self.matched if m.tag in keeped_tags]
 
-    def save_state(self):
+    def get_state(self):
         return (self._i, self.accept_endidx)
 
-    def restore_state(self, state):
+    def reset_state(self, state):
         self._i = state[0]
         self.accept_endidx = state[1]
 
@@ -32,23 +33,25 @@ class AcMatcher:
         self.skip_unaccept()
         return self._i < len(self.matched)
 
-    def iter_init_status(self, init_i):
-        keyword = self.matched[init_i]
-        self.accept(keyword)
+    def iter_init(self, init_i):
         self._i = init_i
-        self.skip_unaccept()
-        return keyword
+        keyword = self.matched[init_i]
+        if init_i == 0:
+            self.accept_endidx = -1
+        else:
+            self.accept_endidx = keyword.start - 1
 
     # 每个位置的下一个合法位置的索引
-    def build_word_next_idx(self, n):
+    def build_word_next_idx(self):
         k = 0
-        for i in range(n):
+        for i in range(self.dialog_length):
             while k < len(self.matched) and self.matched[k].start <= i:
                 k += 1
             self.word_next_idx.append(k)
 
     def skip_unaccept(self):
         if self.word_next_idx:
+            if self.accept_endidx < 0: return 0
             self._i = max(self._i, self.word_next_idx[self.accept_endidx])
         else:
             while self._i < len(self.matched) and self.matched[self._i].start <= self.accept_endidx:
@@ -131,7 +134,7 @@ class AC:
         matched = self.match_a_ac(self.keyword_ac, query, "0")
         matched_slot = self.match_a_ac(self.slot_ac, query, "1")
         matched.extend(matched_slot)
-        return AcMatcher(matched, self.get_tag_idx_dict(matched))
+        return AcMatcher(matched, self.get_tag_idx_dict(matched), len(query))
         
     def match_a_ac(self, A, query, word_tp):
         ans = []

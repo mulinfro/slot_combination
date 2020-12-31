@@ -189,6 +189,7 @@ class RuleStructure:
 
     def build_tp_prefixes(self, rules):
         ans, all_tags = {}, set()
+        ans[""] = TrieNodeInfo()
         for rs, nm in rules:
             for r, slices, permutation in rs:
                 eles = r.strip("#").split("#")
