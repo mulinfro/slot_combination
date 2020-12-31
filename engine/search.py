@@ -72,8 +72,10 @@ class Searcher:
                     if search_step_fingerprint in has_seen: continue
                     has_seen.add(search_step_fingerprint)
                     if new_tp in fingerprint and fingerprint[new_tp].isLeaf():
-                        new_matched_eles = matched_eles + ((state[1] + 1, any_pat.get_max_dist(state[1], self.AM.dialog_length)),)
-                        best_ans.append(MatchedItem(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
+                        d = any_pat.get_max_dist(state[1], self.AM.dialog_length - 1)
+                        if d > 0:
+                            new_matched_eles = matched_eles + ((state[1] + 1, d),)
+                            best_ans.append(MatchedItem(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
 
                 # 查询中间是__ANY__
                 for i in range(1, 25):

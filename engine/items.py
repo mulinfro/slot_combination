@@ -34,10 +34,15 @@ class AnyPat:
         return self.min_span == min_s and self.max_span == max_s
 
     def get_max_dist(self, cur, maxl):
+        idx = -1
         if self.max_span < 0:
-            return maxl
+            idx = maxl
         else:
-            return min(cur + self.max_span, maxl)
+            idx = min(cur + self.max_span, maxl)
+        if idx - cur < self.min_span:
+            return -1
+        return idx 
+
 
 class MatchedItem:
 
