@@ -84,9 +84,9 @@ queryFile: query文件，用作批量调用
 ```
 
 ### 其他说明
-* 程序结构见engine/IMPL.md文件
-* 规则语法说明见syntax.md
-* 测试例子见test目录
+* 程序结构见*engine/IMPL.md*文件
+* 规则语法说明见*syntax.md*
+* 测试例子见*test目录*
 
 
 ### 词库
