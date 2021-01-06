@@ -56,6 +56,11 @@ class MatchedItem:
         self.begin = 0
         self.end = 0
 
+    def concat(self, item):
+        self.end = item.end
+        self.tagkey += "#" + item.tagkey
+        self.fragments += item.fragments
+
     def __repr__(self):
         return "(%s,%d,%d)"%(self.matched, self.begin, self.end)
 

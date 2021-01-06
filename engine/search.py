@@ -1,6 +1,6 @@
 import config
 from items import *
-from post_handle import apply_post, get_idx_slot
+from post_handle import apply_post, get_idx_slot, trans_by_post
 
 class Searcher:
 
@@ -165,7 +165,7 @@ class Searcher:
             if matched_items:
                 for m in matched_items:  m.cal_match_score(dialog)
                 if rule_tp == "PLUS":
-                    all_plus, post = self.plus_extract(matched_items, pname, conf)
+                    all_plus, post = self.plus_extract(matched_items, pname, conf, special_post)
                 else:
                     all_plus, post = self.special_rule_extract(matched_items, pname, conf, special_post)
                 if all_plus:
@@ -210,29 +210,41 @@ class Searcher:
 
         return tags, post
 
-    def plus_extract(self, lst, tag, conf):
-        ans = []
-        p_i = b_i = 0
-        cnt = 1
-        for i in range(1, len(lst)):
-            start, end = lst[i].begin, lst[i].end
-            pre_end = lst[p_i].end
-            if end <= pre_end: continue
+    def plus_extract(self, lst, tag, conf, special_post):
+        ans, post = [], {}
+        if not lst: return ans, post
 
-            m_dist = start - pre_end
-            if m_dist > 0 and m_dist <= conf["max_dist"] + 1:
-                p_i = i
+        item = lst[0]
+        i, cnt = 1, 1
+        while i < len(lst):
+            dist = lst[i].begin - item.end
+            end_flag = False
+            if dist <= 0:
+                end_flag = conf["no_cover"]
+                i += 1
+            elif dist <= conf["max_dist"] + 1 and cnt < conf["max_N"]:
+                item.concat(lst[i])
                 cnt += 1
-            elif m_dist > conf["max_dist"] + 1 or (m_dist <= 0 and conf["no_cover"]):
-                if cnt >= conf["min_N"]:
-                    ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2"))
+                i += 1
+            else:
+                end_flag = True
 
-                p_i = b_i = i
-                cnt = 1
+            if cnt >= conf["min_N"] and end_flag:
+                frags, _ = trans_by_post(item.fragments, special_post)
+                post[(tag, item.begin, item.end)] =  {"__OUT__": "".join(frags)}
+                ans.append(AcMatchedGroup(item.begin, item.end, tag, "2"))
 
-        if len(lst) and cnt >= conf["min_N"]:
-            ans.append(AcMatchedGroup(lst[b_i].begin, lst[p_i].end, tag, "2"))
+            if end_flag: 
+                if i < len(lst):
+                    item = lst[i]
+                    cnt = 1
+                    i += 1
+                else:
+                    item = None
 
-        return ans, {}
+        if cnt >= conf["min_N"] and item is not None:
+            frags, _ = trans_by_post(item.fragments, special_post)
+            post[(tag, item.begin, item.end)] =  {"__OUT__": "".join(frags)}
+            ans.append(AcMatchedGroup(item.begin, item.end, tag, "2"))
 
-
+        return ans, post

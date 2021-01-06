@@ -1,9 +1,10 @@
 
 """ 参数
  PLUS
- -- min_N
- -- no_cover
- -- max_dist
+ -- min_N:   最少匹配的个数
+ -- max_N:   最大匹配个数， 默认无限制
+ -- no_cover  搜索时是否不能覆盖, 覆盖就截断
+ -- max_dist  元素间最大间隔
  SEARCH
  -- no_skip_atom
  -- no_skip_any
@@ -13,8 +14,8 @@
 MULTI_INTENT = True
 
 # 全局基础配置
-__plus   = {"min_N":1, "no_cover":1, "max_dist": 0 }
-__search = {"no_skip_atom": 0, "no_skip_any": 0, "max_dist": 3}
+__plus   = {"min_N":1, "max_N": 1000, "no_cover":False, "max_dist": 0 }
+__search = {"no_skip_atom": False, "no_skip_any": False, "max_dist": 3}
 __export = {}
 __atom = {}
 __rule = {}
