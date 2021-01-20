@@ -62,6 +62,15 @@ def get_cross_ele(lst, all_sets, i):
 
 
 class RulesInfo:
+    """
+        包含所有规则的全局信息
+            key是规则名
+        槽位： slots = {}
+        配置： config = {}
+        规则类型:   rule_type = collections.OrderedDict()
+        后处理函数: post_func = {}
+
+    """
 
     def __init__(self):
         self.slots = {}
@@ -320,6 +329,7 @@ class AST:
             return {"tp":val.tp , "val": val.val}
 
     """
+        后处理格式
         1. intent = "first", slot_int = 1, slot = $1
         2. @post($1, 2)
     """

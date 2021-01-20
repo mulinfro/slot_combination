@@ -1,6 +1,7 @@
 from syntax_check import Error
 from post_register import post_modules
 
+# 获得所有槽位及对应的值
 def extract_slots(slot_indexes, idx_slot_map):
     ex_slots = {}
     for k,v in idx_slot_map.items():
@@ -40,6 +41,12 @@ def trans_by_post(matched_frags, special_post):
     return frags, extra_slots
                 
 def get_idx_slot(slices, perm, matched_frags, special_post = None):
+    """
+        对于 export r = [{f1}, {f2}, {f3}] => {"slot1" = $1, "slot2" = $2, "slot3" = $3}
+        获得每个位置的槽位值
+        从1开始计数， 1, 表示第一个位置的值
+        0, 表示匹配到的整体
+    """
     pre = 0
     idx_slot_map = {}
     matched_part = ""
@@ -55,9 +62,9 @@ def get_idx_slot(slices, perm, matched_frags, special_post = None):
     idx_slot_map[0] = matched_part
     return idx_slot_map
 
+# apply后处理函数
 def apply_post(slot_indexes, pfunc, idx_slot_map, context = {}):
     slots = extract_slots(slot_indexes, idx_slot_map)
-    #print("IDX_SLOT", idx_slot_map)
     for fname, params in pfunc.items():
         post_modules[fname](params, slots, idx_slot_map, context = context)
     return slots

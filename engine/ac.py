@@ -3,10 +3,9 @@ from items import AcMatchedGroup
 
 
 class AcMatcher:
-    def __init__(self, a, b, l):
+    def __init__(self, a, l):
         self.matched = a
         self.sorted()
-        self.word_tag_index = b
         self.word_next_idx = []
         self._i = 0
         self.accept_endidx = -1
@@ -90,19 +89,25 @@ class AcMatcher:
 
 
 class AC:
+    """
+        构建词表的AC自动机
+        分 1.关键词的ac:  keyword_ac  （规则中的所有ATOM）
+          2.字典槽位的ac: slot_ac
+        理论上可以合并， 考虑到以后可能的优化，分开处理
+    """
+
     def __init__(self):
         self.keyword_ac = None
         self.slot_ac = None
 
     def init_slot_ac(self, files):
-        if not files:
-            self.slot_ac.add_word("###", (["SYS"], 3))
-        else:
-            self.read_and_insert(files)
-
-    def read_and_insert(self, files):
+        """
+           读入词表文件, 逐个词插入 word: (tag, 词长)
+           tag是文件名， 取第一个“.”前的， 比如： 歌曲.txt =>  歌曲;  歌曲.cn.txt =>  歌曲
+        """
+        import os.path
         for f in files:
-            tag = f.split("/")[-1].split(".")[0]
+            tag = os.path.basename(f).split(".")[0]
             for line in open(f):
                 line = line.strip()
                 if not line: continue
@@ -116,6 +121,9 @@ class AC:
                     self.slot_ac.add_word(line, ([tag], len(line)))
 
     def init_keyword_ac(self, all_keywords): 
+        """
+            all_keywords: 所有的关键词, (词， tag) 的list， 这里的tag就是atom规则名
+        """
         for k, v in all_keywords.items():
             self.keyword_ac.add_word(k, (v, len(k)))
 
@@ -134,9 +142,13 @@ class AC:
         matched = self.match_a_ac(self.keyword_ac, query, "0")
         matched_slot = self.match_a_ac(self.slot_ac, query, "1")
         matched.extend(matched_slot)
-        return AcMatcher(matched, self.get_tag_idx_dict(matched), len(query))
+        return AcMatcher(matched, len(query))
         
     def match_a_ac(self, A, query, word_tp):
+        """
+            找出一个AC自动机所有匹配到的词
+            1:词开始index， 2:结束index, 3:tag, 4:词类型（这个字段暂时无用）
+        """
         ans = []
         if A is None: return ans
         for end_index, (tags, key_length) in A.iter(query):

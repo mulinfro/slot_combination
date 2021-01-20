@@ -1,3 +1,6 @@
+"""
+   实现个stream， 用于LR(1)文法解析
+"""
 from syntax_check import Error
 class stream:
     

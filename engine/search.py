@@ -1,8 +1,17 @@
+"""
+    在构建好的规则Trie树中，找出query所有可以匹配的组合
+"""
+
 import config
 from items import *
 from post_handle import apply_post, get_idx_slot, trans_by_post
 
 class Searcher:
+    """
+        rule_trie: 编译好的Trie树类
+        rule_info: 规则的全局信息，后处理，搜索配置等
+        ac_machie: 词典和关键字的AC自动机
+    """
 
     def __init__(self, rule_trie, rule_info, ac_machine):
         self.rule_trie = rule_trie
@@ -10,6 +19,11 @@ class Searcher:
         self.ac_machine = ac_machine
 
     def basic_set(self, dialog):
+        """ 搜索前预处理: 
+                1. 找出所有词
+                2. 预处理需要特殊规则： plus及需要后处理的非export规则
+                3. 删除用不到的tag， 排序
+        """
         self.AM = self.ac_machine.match(dialog)
         special_post = self.special_preprocess(dialog)
         if len(self.rule_trie.keeped_tags) > 0:
@@ -19,12 +33,14 @@ class Searcher:
         #print(self.AM.matched)
         return special_post
 
+    # 按照贪心策略搜索
     def max_match(self, dialog):
         special_post = self.basic_set(dialog)
         conf = config.get_conf(None, "search")
         matched_ans = self._greed_match(self.rule_trie.export_trie, conf)
         return matched_ans, special_post
         
+    # 完全搜索所有可能
     def search_match(self, dialog):
         special_post = self.basic_set(dialog)
         conf = config.get_conf(None, "search")
@@ -41,7 +57,7 @@ class Searcher:
 
         return all_matched
 
-    # 对规则的最长匹配
+    # 深度优先搜索    
     def _search_match_helper(self, i, fingerprint, has_seen, conf):
         self.AM.iter_init(i)
         best_ans = []
@@ -65,7 +81,7 @@ class Searcher:
             if fingerprint[tp].is_next_any():
                 any_list = fingerprint[tp].anys
 
-                # 如果最后是__ANY__
+                # 如果规则最后是__ANY__
                 for any_pat in any_list:
                     new_tp = "%s#%s"%(tp, any_pat.to_pat())
                     search_step_fingerprint = "%d&%s"%(state[0], new_tp)
@@ -77,7 +93,7 @@ class Searcher:
                             new_matched_eles = matched_eles + ((state[1] + 1, d),)
                             best_ans.append(MatchedItem(new_tp,  new_matched_eles, fingerprint[new_tp].match_list))
 
-                # 查询中间是__ANY__
+                # 查询规则中间是__ANY__
                 for i in range(1, 25):
                     ele = self.AM.look_next(i)
                     if ele is None: break

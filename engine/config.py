@@ -1,11 +1,13 @@
 
-""" 参数
- PLUS
+""" 
+    引擎默认参数定义, 以及用户自定义参数配置项
+
+ PLUS: plus规则的相关参数
  -- min_N:   最少匹配的个数
  -- max_N:   最大匹配个数， 默认无限制
  -- no_cover  搜索时是否不能覆盖, 覆盖就截断
  -- max_dist  元素间最大间隔
- SEARCH
+ SEARCH: 搜索过程中的相关参数
  -- no_skip_atom
  -- no_skip_any
  -- max_dist
@@ -38,6 +40,12 @@ def get_base_conf(tp):
 
 
 def get_conf(name, tp):
+    """ 
+        tp: 规则类型，   name: 配置名
+        根据规则类型和配置名，获取参数列表
+        先根据tp获取系统默认配置，  再根据name获取用户自定义的配置
+        用户自定义的项会覆盖默认配置
+    """
     base = get_base_conf(tp)
     ans = {}
     if base:

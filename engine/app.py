@@ -9,6 +9,10 @@ from selector import Selector
 
 
 def read_lex(lex_file):
+    """
+        1. load一个目录中所有lex后缀的文件
+        2. 逗号分割的文件字符串(不限文件后缀)： file1.lex，file2.lex,...
+    """
     if os.path.isdir(lex_file):
         files = glob.glob(lex_file + "/*.lex")
     else:
@@ -28,12 +32,16 @@ class Engine:
         self.build(lex_file, dict_dir)
 
     def build(self, lex_file, dict_dir):
+        """
+           读入规则文件， 词典文件
+           构建自动机和匹配引擎
+        """
         ori_in = read_lex(lex_file)
         script = char_stream(ori_in)
         tokens = token_list(script).tokens
         ast_obj = ast.AST(stream(tokens))
         
-        # 词典文件目录列表， 逗号分开
+        # 逗号分开的词典文件目录列表，  会加载目录中所有txt文件
         all_slot_entity_files = []
         if dict_dir:
             dict_dirs = dict_dir.split(",")
@@ -52,6 +60,9 @@ class Engine:
         self.rule_info = rule_info
 
     def apply(self, query):
+        """
+            引擎构建好后，即可解析query
+        """
         matched_items, special_post = self.searcher.search_match(query)
         sel = Selector(matched_items, special_post, self.rule_info)
         return sel.apply(query)

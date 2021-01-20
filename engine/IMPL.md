@@ -84,8 +84,6 @@ atom tag_播放 = 播放|放|播
 
 ###  程序结构
 
-
-
  - builtin.py   内置关键词，特殊符号等
  - util.py      一些工具函数
  - items.py 一些辅助性类定义
@@ -101,4 +99,5 @@ atom tag_播放 = 播放|放|播
  - select.py  候选集筛选策略
  - app.py 运行入口文件
  - post_register.py 后处理函数库注册类
+ - post_handle.py 实现后处理的方法
  - post_libs  定义后处理函数的目录

@@ -1,3 +1,6 @@
+"""
+    TOKENIZE
+"""
 
 from builtin import keywords, op_alp, op_info
 from syntax_check import *

@@ -1,3 +1,6 @@
+"""
+    匹配到多个规则，根据一定策略选择最优的匹配项（匹配项组合）
+"""
 import config, util
 from post_handle import apply_post, get_idx_slot
 

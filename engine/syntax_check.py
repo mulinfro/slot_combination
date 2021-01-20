@@ -1,19 +1,12 @@
-# syntax check help functions
+"""
+   syntax check help functions
+"""
 
 class Eval_exception(Exception):
     def __init__(self, value):
         self.value = value
     def __str__(self):
         return repr(self.value)
-
-'''
-def Error(msg, tkn=None):
-    import sys
-    if tkn:
-        print(tkn)
-        print("Syntax Error: In line %d Col %d %s" % (tkn.line,tkn.col, msg), file=sys.stderr)
-    raise Exception(msg)
-'''
 
 def Error(msg, line=None, col=None):
     prefix = "" 

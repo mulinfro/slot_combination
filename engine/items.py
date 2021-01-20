@@ -1,6 +1,10 @@
 
 from collections import namedtuple
 ParamItem = namedtuple('ParamItem', ['tp', 'val'])
+# Trie树的叶子节点信息
+# name:   匹配到的规则名  
+# slices: 槽位占据的tag个数,  一个槽位可以是多个tag值组合而成
+# permutation: 槽位位置信息， 主要用于 <> 这种无序规则的位置信息
 TNode = namedtuple('TNode', ['name', 'slices', 'permutation'])
 
 # SpecialRulePost = namedtuple('SpecialRulePost', ['tag', 'start', 'end'])
@@ -45,6 +49,17 @@ class AnyPat:
 
 
 class MatchedItem:
+    """
+        匹配到的完整规则ITEM
+        包含一些必要信息
+
+        例子:
+            tagkey  =>  #num#op#num#多少 
+            fragments =>  ((0, 0), (1, 1), (2, 2), (4, 5))
+            tnodes  =>  [TNode(name='expr1', slices=(1, 1, 1, 1), permutation=None),
+                        TNode(name='expr2', slices=(1, 1, 1, 1), permutation=None), 
+                        TNode(name='calculator1', slices=(3, 0, 1), permutation=None)]
+    """
 
     def __init__(self, tagkey, fragments, tnodes):
         self.tagkey = tagkey
@@ -88,5 +103,8 @@ class MatchedItem:
 
         self.matched = dialog[self.begin: self.end + 1]
         sv = self.score()
+        # 匹配到的字符长度占整个query的比例; 越大越好
         self.match_score = sv[0] / len(dialog)
+        # 模糊匹配的长度占匹配的pattern的比例
+        # {听} 额额 {刘德华} 的 {歌}  =  3 / (1 + 2 + 3 + 1 + 1)
         self.fuzzy_degree = sv[1] / sv[0]
